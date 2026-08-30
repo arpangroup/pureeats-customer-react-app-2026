@@ -4,15 +4,18 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
+import { InstallPromptProvider } from './context/InstallPromptContext'
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <ThemeProvider>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
+        <InstallPromptProvider>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </InstallPromptProvider>
       </ThemeProvider>
     </BrowserRouter>
   </StrictMode>,
