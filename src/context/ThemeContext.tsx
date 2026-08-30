@@ -5,6 +5,11 @@ export type Theme = 'light' | 'dark'
 
 const THEME_STORAGE_KEY = 'pureeats.theme'
 
+// Matches the actual header/tab-bar background per theme (see TopNavBar,
+// PageHeader, BottomTabBar) so the OS status bar / PWA title bar blends
+// into the app chrome instead of showing the brand color under every theme.
+const STATUS_BAR_COLOR: Record<Theme, string> = { light: '#ffffff', dark: '#0f172a' }
+
 interface ThemeContextValue {
   theme: Theme
   toggleTheme: () => void
@@ -24,6 +29,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
     writeStorage(THEME_STORAGE_KEY, theme)
+
+    document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+      meta.setAttribute('content', STATUS_BAR_COLOR[theme])
+    })
+    document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute(
+      'content',
+      theme === 'dark' ? 'black-translucent' : 'default',
+    )
   }, [theme])
 
   const toggleTheme = useCallback(() => {
