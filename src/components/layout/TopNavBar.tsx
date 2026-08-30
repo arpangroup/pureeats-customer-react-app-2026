@@ -7,7 +7,7 @@ import { useActiveLocation } from '@/hooks/useLocation'
 import { initials } from '@/lib/format'
 
 export function TopNavBar() {
-  const { user, logout } = useAuth()
+  const { user, isAuthenticated, logout } = useAuth()
   const { itemCount } = useCart()
   const { activeAddress } = useActiveLocation()
   const navigate = useNavigate()
@@ -52,34 +52,40 @@ export function TopNavBar() {
           )}
         </button>
 
-        <div className="relative shrink-0">
-          <button onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-400">
-              {user ? initials(user.name) : '?'}
-            </span>
-            <ChevronDown size={14} className="text-slate-400" />
-          </button>
-          {menuOpen && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-xl border border-slate-100 bg-white py-1 shadow-lg dark:border-slate-800 dark:bg-slate-900">
-                <div className="border-b border-slate-100 px-3.5 py-2.5 dark:border-slate-800">
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{user?.name}</p>
-                  <p className="truncate text-xs text-slate-400">{user?.email}</p>
+        {isAuthenticated ? (
+          <div className="relative shrink-0">
+            <button onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-2 rounded-lg px-1.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-400">
+                {user ? initials(user.name) : '?'}
+              </span>
+              <ChevronDown size={14} className="text-slate-400" />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-xl border border-slate-100 bg-white py-1 shadow-lg dark:border-slate-800 dark:bg-slate-900">
+                  <div className="border-b border-slate-100 px-3.5 py-2.5 dark:border-slate-800">
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{user?.name}</p>
+                    <p className="truncate text-xs text-slate-400">{user?.email}</p>
+                  </div>
+                  <Link to="/profile" onClick={() => setMenuOpen(false)} className="block px-3.5 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
+                    My profile
+                  </Link>
+                  <Link to="/orders" onClick={() => setMenuOpen(false)} className="block px-3.5 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
+                    My orders
+                  </Link>
+                  <button onClick={handleLogout} className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10">
+                    <LogOut size={15} /> Sign out
+                  </button>
                 </div>
-                <Link to="/profile" onClick={() => setMenuOpen(false)} className="block px-3.5 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
-                  My profile
-                </Link>
-                <Link to="/orders" onClick={() => setMenuOpen(false)} className="block px-3.5 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
-                  My orders
-                </Link>
-                <button onClick={handleLogout} className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10">
-                  <LogOut size={15} /> Sign out
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <button onClick={() => navigate('/login')} className="btn-primary shrink-0">
+            Sign in
+          </button>
+        )}
       </div>
     </header>
   )

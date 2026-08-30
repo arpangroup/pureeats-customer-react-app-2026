@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { readStorage, writeStorage } from '@/lib/storage'
-import type { CartAddon, CartLine } from '@/types/entities'
+import type { CartAddon, CartLine, OrderDeliveryType } from '@/types/entities'
 import type { AppliedCoupon } from '@/lib/pricing'
 
 const CART_STORAGE_KEY = 'pureeats.cart'
@@ -11,9 +11,21 @@ interface CartState {
   lines: CartLine[]
   coupon: AppliedCoupon | null
   tipAmount: number
+  deliveryType: OrderDeliveryType
+  cookingNote: string
+  deliveryInstructions: string
 }
 
-const EMPTY_CART: CartState = { restaurantId: null, restaurantName: null, lines: [], coupon: null, tipAmount: 0 }
+const EMPTY_CART: CartState = {
+  restaurantId: null,
+  restaurantName: null,
+  lines: [],
+  coupon: null,
+  tipAmount: 0,
+  deliveryType: 'DELIVERY',
+  cookingNote: '',
+  deliveryInstructions: '',
+}
 
 function lineKey(itemId: number, addons: CartAddon[]): string {
   return `${itemId}:${addons.map((a) => a.addonId).sort((a, b) => a - b).join(',')}`
@@ -47,6 +59,12 @@ interface CartContextValue {
   setCoupon: (coupon: AppliedCoupon | null) => void
   tipAmount: number
   setTipAmount: (amount: number) => void
+  deliveryType: OrderDeliveryType
+  setDeliveryType: (type: OrderDeliveryType) => void
+  cookingNote: string
+  setCookingNote: (note: string) => void
+  deliveryInstructions: string
+  setDeliveryInstructions: (instructions: string) => void
 }
 
 const CartContext = createContext<CartContextValue | undefined>(undefined)
@@ -71,7 +89,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const lines = existing
       ? base.lines.map((l) => (l.key === key ? { ...l, quantity: l.quantity + quantity } : l))
       : [...base.lines, { key, itemId: item.itemId, name: item.name, price: item.price, image: item.image, isVeg: item.isVeg, quantity, addons: item.addons }]
-    return { restaurantId, restaurantName, lines, coupon: base.coupon, tipAmount: base.tipAmount }
+    return {
+      restaurantId,
+      restaurantName,
+      lines,
+      coupon: base.coupon,
+      tipAmount: base.tipAmount,
+      deliveryType: base.deliveryType,
+      cookingNote: base.cookingNote,
+      deliveryInstructions: base.deliveryInstructions,
+    }
   }, [])
 
   const addItem = useCallback(
@@ -112,6 +139,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const setCoupon = useCallback((coupon: AppliedCoupon | null) => persist({ ...cart, coupon }), [cart, persist])
   const setTipAmount = useCallback((tipAmount: number) => persist({ ...cart, tipAmount }), [cart, persist])
+  const setDeliveryType = useCallback((deliveryType: OrderDeliveryType) => persist({ ...cart, deliveryType }), [cart, persist])
+  const setCookingNote = useCallback((cookingNote: string) => persist({ ...cart, cookingNote }), [cart, persist])
+  const setDeliveryInstructions = useCallback((deliveryInstructions: string) => persist({ ...cart, deliveryInstructions }), [cart, persist])
 
   const itemCount = useMemo(() => cart.lines.reduce((sum, l) => sum + l.quantity, 0), [cart.lines])
   const subtotal = useMemo(
@@ -136,8 +166,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setCoupon,
       tipAmount: cart.tipAmount,
       setTipAmount,
+      deliveryType: cart.deliveryType,
+      setDeliveryType,
+      cookingNote: cart.cookingNote,
+      setCookingNote,
+      deliveryInstructions: cart.deliveryInstructions,
+      setDeliveryInstructions,
     }),
-    [cart, itemCount, subtotal, wouldReplaceRestaurant, addItem, replaceCart, updateQuantity, removeLine, clearCart, setCoupon, setTipAmount],
+    [
+      cart,
+      itemCount,
+      subtotal,
+      wouldReplaceRestaurant,
+      addItem,
+      replaceCart,
+      updateQuantity,
+      removeLine,
+      clearCart,
+      setCoupon,
+      setTipAmount,
+      setDeliveryType,
+      setCookingNote,
+      setDeliveryInstructions,
+    ],
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

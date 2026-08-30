@@ -46,6 +46,7 @@ export default [
         AudioContext: 'readonly',
         Notification: 'readonly',
         BeforeInstallPromptEvent: 'readonly',
+        google: 'readonly',
       },
     },
     plugins: {

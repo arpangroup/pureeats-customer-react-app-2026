@@ -1,5 +1,4 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { ProtectedRoute } from './ProtectedRoute'
 import { AppShell } from '@/components/layout/AppShell'
 
 import AuthLayout from '@/pages/auth/AuthLayout'
@@ -34,13 +33,7 @@ export function AppRoutes() {
         <Route path="/verify" element={<VerifyPage />} />
       </Route>
 
-      <Route
-        element={
-          <ProtectedRoute>
-            <AppShell />
-          </ProtectedRoute>
-        }
-      >
+      <Route element={<AppShell />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/category/:id" element={<RestaurantListPage />} />

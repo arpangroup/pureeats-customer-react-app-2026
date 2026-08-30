@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Bell, ChevronRight, Heart, LogOut, MapPin, Settings, ShieldOff, Wallet } from 'lucide-react'
+import { Bell, ChevronRight, Heart, LogIn, LogOut, MapPin, Settings, ShieldOff, Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useAuth } from '@/hooks/useAuth'
 import { initials } from '@/lib/format'
@@ -14,7 +14,7 @@ const menuItems = [
 ]
 
 export default function ProfilePage() {
-  const { user, logout, logoutAll } = useAuth()
+  const { user, isAuthenticated, logout, logoutAll } = useAuth()
   const navigate = useNavigate()
 
   async function handleLogout() {
@@ -31,16 +31,34 @@ export default function ProfilePage() {
     <div>
       <PageHeader title="Profile" />
       <div className="mx-auto max-w-lg px-4 py-4 md:py-8">
-        <div className="card flex items-center gap-3 p-4">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-100 text-lg font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-400">
-            {user ? initials(user.name) : '?'}
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-base font-semibold text-slate-800 dark:text-slate-100">{user?.name}</p>
-            <p className="truncate text-sm text-slate-500 dark:text-slate-400">{user?.email}</p>
-            {user?.phone && <p className="truncate text-xs text-slate-400 dark:text-slate-500">{user.phone}</p>}
+        {isAuthenticated ? (
+          <div className="card flex items-center gap-3 p-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-100 text-lg font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-400">
+              {user ? initials(user.name) : '?'}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold text-slate-800 dark:text-slate-100">{user?.name}</p>
+              <p className="truncate text-sm text-slate-500 dark:text-slate-400">{user?.email}</p>
+              {user?.phone && <p className="truncate text-xs text-slate-400 dark:text-slate-500">{user.phone}</p>}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="card flex items-center gap-3 p-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">
+              <LogIn size={22} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-semibold text-slate-800 dark:text-slate-100">You're browsing as a guest</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Sign in to place orders and save addresses.</p>
+            </div>
+          </div>
+        )}
+
+        {!isAuthenticated && (
+          <button className="btn-primary mt-4 w-full" onClick={() => navigate('/login', { state: { from: '/profile' } })}>
+            Sign in
+          </button>
+        )}
 
         <div className="card mt-4 divide-y divide-slate-100 overflow-hidden dark:divide-slate-800">
           {menuItems.map(({ to, label, icon: Icon }) => (
@@ -52,18 +70,20 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        <div className="card mt-4 divide-y divide-slate-100 overflow-hidden dark:divide-slate-800">
-          <button onClick={handleLogout} className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-rose-50 dark:hover:bg-rose-500/10">
-            <LogOut size={18} className="text-rose-600 dark:text-rose-400" />
-            <span className="text-sm font-medium text-rose-600 dark:text-rose-400">Sign out</span>
-          </button>
-          {!IS_MOCK && (
-            <button onClick={handleLogoutAll} className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-rose-50 dark:hover:bg-rose-500/10">
-              <ShieldOff size={18} className="text-rose-600 dark:text-rose-400" />
-              <span className="text-sm font-medium text-rose-600 dark:text-rose-400">Sign out of all devices</span>
+        {isAuthenticated && (
+          <div className="card mt-4 divide-y divide-slate-100 overflow-hidden dark:divide-slate-800">
+            <button onClick={handleLogout} className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-rose-50 dark:hover:bg-rose-500/10">
+              <LogOut size={18} className="text-rose-600 dark:text-rose-400" />
+              <span className="text-sm font-medium text-rose-600 dark:text-rose-400">Sign out</span>
             </button>
-          )}
-        </div>
+            {!IS_MOCK && (
+              <button onClick={handleLogoutAll} className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-rose-50 dark:hover:bg-rose-500/10">
+                <ShieldOff size={18} className="text-rose-600 dark:text-rose-400" />
+                <span className="text-sm font-medium text-rose-600 dark:text-rose-400">Sign out of all devices</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

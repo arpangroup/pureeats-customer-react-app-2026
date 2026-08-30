@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { Mail, User as UserIcon } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { Field, TextInput } from '@/components/ui/FormControls'
@@ -8,6 +8,8 @@ import { IS_MOCK } from '@/config/env'
 export default function RegisterPage() {
   const { register, isLoading, error } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const from = (location.state as { from?: string } | null)?.from
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
 
@@ -21,6 +23,7 @@ export default function RegisterPage() {
           maskedDestination: challenge.maskedDestination,
           expiresIn: challenge.expiresIn,
           resendAvailableIn: challenge.resendAvailableIn,
+          from,
         },
       })
     } catch {
@@ -62,7 +65,7 @@ export default function RegisterPage() {
 
       <p className="mt-5 text-center text-sm text-slate-500 dark:text-slate-400">
         Already have an account?{' '}
-        <Link to="/login" className="font-medium text-brand-600 hover:underline">
+        <Link to="/login" state={{ from }} className="font-medium text-brand-600 hover:underline">
           Sign in
         </Link>
       </p>

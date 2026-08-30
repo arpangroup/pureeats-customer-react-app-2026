@@ -6,7 +6,12 @@ import { items } from '@/mocks/fixtures/items'
 import { itemCategories } from '@/mocks/fixtures/itemCategories'
 import { addonCategories } from '@/mocks/fixtures/addonCategories'
 import { addons } from '@/mocks/fixtures/addons'
+import { restaurants } from '@/mocks/fixtures/restaurants'
 import type { Addon, AddonCategory, ItemCategory, MenuItem } from '@/types/entities'
+
+export interface PopularItem extends MenuItem {
+  restaurantName: string
+}
 
 interface LiveItem {
   id: number
@@ -86,5 +91,17 @@ export const menuService = {
   async addonGroupsForItem(itemId: number): Promise<{ category: AddonCategory; addons: Addon[] }[]> {
     const categories = await menuService.addonCategoriesForItem(itemId)
     return Promise.all(categories.map(async (category) => ({ category, addons: await menuService.addonsForCategory(category.id) })))
+  },
+
+  /** Trending dishes across every restaurant — powers the Search page's empty state. Mock-only: there's no cross-restaurant "popular items" endpoint on the backend. */
+  async popularItems(limit = 8): Promise<PopularItem[]> {
+    if (IS_MOCK) {
+      await mockDelay(150)
+      return items
+        .filter((i) => i.isActive && i.isPopular)
+        .slice(0, limit)
+        .map((i) => ({ ...i, restaurantName: restaurants.find((r) => r.id === i.restaurantId)?.name ?? 'Restaurant' }))
+    }
+    return []
   },
 }

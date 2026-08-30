@@ -71,6 +71,7 @@ function mapLive(d: LiveRestaurantSummary | LiveRestaurantDetail): Restaurant {
     isAcceptCod: detail.isAcceptCod ?? true,
     openingTime: detail.openingTime ?? '00:00',
     closingTime: detail.closingTime ?? '23:59',
+    certificate: detail.certificate ?? null,
     categoryIds: [],
   }
 }

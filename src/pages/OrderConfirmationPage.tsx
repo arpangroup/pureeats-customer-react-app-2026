@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { CheckCircle2 } from 'lucide-react'
 import { useAsync } from '@/hooks/useAsync'
 import { useAuth } from '@/hooks/useAuth'
@@ -9,10 +9,11 @@ import { formatCurrency } from '@/lib/format'
 export default function OrderConfirmationPage() {
   const { id } = useParams()
   const orderId = Number(id)
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const { data: order, isLoading } = useAsync(() => (user ? orderService.get(user.id, orderId) : Promise.resolve(undefined)), [user?.id, orderId])
 
+  if (!isAuthenticated) return <Navigate to="/" replace />
   if (isLoading) return <LoadingBlock />
   if (!order) return null
 

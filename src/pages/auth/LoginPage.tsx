@@ -1,15 +1,22 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useLocation, useNavigate, Link } from 'react-router-dom'
 import { Mail, Phone } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { Field, TextInput } from '@/components/ui/FormControls'
 import { IS_MOCK } from '@/config/env'
 import { DEMO_ACCOUNTS } from '@/services/authService'
 
+interface LoginNavState {
+  from?: string
+  method?: 'EMAIL' | 'PHONE'
+}
+
 export default function LoginPage() {
   const { requestOtp, isLoading, error } = useAuth()
   const navigate = useNavigate()
-  const [method, setMethod] = useState<'EMAIL' | 'PHONE'>('EMAIL')
+  const location = useLocation()
+  const navState = (location.state ?? {}) as LoginNavState
+  const [method, setMethod] = useState<'EMAIL' | 'PHONE'>(navState.method ?? 'EMAIL')
   const [email, setEmail] = useState('')
   const [countryId, setCountryId] = useState('91')
   const [phone, setPhone] = useState('')
@@ -25,6 +32,7 @@ export default function LoginPage() {
           maskedDestination: challenge.maskedDestination,
           expiresIn: challenge.expiresIn,
           resendAvailableIn: challenge.resendAvailableIn,
+          from: navState.from,
         },
       })
     } catch {
@@ -109,7 +117,7 @@ export default function LoginPage() {
 
       <p className="mt-5 text-center text-sm text-slate-500 dark:text-slate-400">
         New here?{' '}
-        <Link to="/register" className="font-medium text-brand-600 hover:underline">
+        <Link to="/register" state={navState} className="font-medium text-brand-600 hover:underline">
           Create account
         </Link>
       </p>

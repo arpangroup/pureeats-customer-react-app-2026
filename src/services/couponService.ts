@@ -43,7 +43,16 @@ export const couponService = {
     return data.data.filter((c) => c.restaurantId === null)
   },
 
-  async apply(userId: number, code: string, restaurantId: number, orderAmount: number): Promise<CouponApplyResult> {
+  /**
+   * `userId` is nullable so a guest browsing pre-login can still preview a
+   * coupon on the Cart page (only placing the order requires an account) —
+   * a guest has no order history, so they're treated as first-order-eligible.
+   * Live mode's `/coupons/preview` endpoint requires a bearer token though,
+   * so a guest calling this against a real backend will still 401 there —
+   * that's an existing backend constraint, not something the frontend can
+   * route around.
+   */
+  async apply(userId: number | null, code: string, restaurantId: number, orderAmount: number): Promise<CouponApplyResult> {
     if (IS_MOCK) {
       await mockDelay(200)
       const coupon = coupons.find((c) => c.code.toUpperCase() === code.toUpperCase() && c.isActive)
@@ -54,7 +63,7 @@ export const couponService = {
       if (orderAmount < coupon.minOrderAmount) {
         throw { message: `Add items worth ₹${coupon.minOrderAmount - orderAmount} more to use this coupon.` }
       }
-      if (coupon.firstOrderOnly && (ordersByUser[userId]?.length ?? 0) > 0) {
+      if (coupon.firstOrderOnly && userId !== null && (ordersByUser[userId]?.length ?? 0) > 0) {
         throw { message: 'This coupon is valid only on your first order.' }
       }
       const discountAmount = computeDiscount(coupon, orderAmount)

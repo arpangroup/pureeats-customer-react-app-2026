@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { LoadingBlock, EmptyState } from '@/components/ui/Feedback'
 import { StarRating } from '@/components/ui/StarRating'
 import { Textarea } from '@/components/ui/FormControls'
+import { RequireAuth } from '@/components/auth/RequireAuth'
 import { useAsync } from '@/hooks/useAsync'
 import { useAuth } from '@/hooks/useAuth'
 import { orderService } from '@/services/orderService'
@@ -16,7 +17,7 @@ const DRIVER_TAGS = ['Friendly', 'Fast', 'Careful handling']
 export default function RateOrderPage() {
   const { id } = useParams()
   const orderId = Number(id)
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const { data: order, isLoading } = useAsync(() => (user ? orderService.get(user.id, orderId) : Promise.resolve(undefined)), [user?.id, orderId])
 
@@ -26,6 +27,17 @@ export default function RateOrderPage() {
   const [driverRating, setDriverRating] = useState(0)
   const [driverTags, setDriverTags] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
+
+  if (!isAuthenticated) {
+    return (
+      <div>
+        <PageHeader title="Rate your order" />
+        <div className="mx-auto max-w-lg px-4 py-4">
+          <RequireAuth title="Sign in to rate your order" />
+        </div>
+      </div>
+    )
+  }
 
   if (isLoading) return <LoadingBlock />
   if (!order) return <EmptyState title="Order not found" />

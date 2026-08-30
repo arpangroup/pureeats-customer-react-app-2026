@@ -13,6 +13,7 @@ const base = {
   isAcceptCod: true,
   openingTime: '10:00',
   closingTime: '23:00',
+  certificate: null as string | null,
 }
 
 export const restaurants: Restaurant[] = [
@@ -23,7 +24,7 @@ export const restaurants: Restaurant[] = [
     rating: 4.5, ratingCount: 1240, deliveryTimeMinutes: 32, priceRange: 2, isPureveg: false,
     address: '12, 5th Block, Koramangala', pincode: '560095', latitude: 12.9346, longitude: 77.6104, distanceKm: 2.1,
     deliveryCharge: 25, minOrderAmount: 99, deliveryRadiusKm: 8, deliveryType: 'delivery', isFeatured: true,
-    categoryIds: [1],
+    categoryIds: [1], certificate: 'FSSAI-11421001000123',
   },
   {
     ...base,
@@ -32,7 +33,7 @@ export const restaurants: Restaurant[] = [
     rating: 4.7, ratingCount: 2103, deliveryTimeMinutes: 25, priceRange: 1, isPureveg: true,
     address: '45, 4th Main, Jayanagar', pincode: '560011', latitude: 12.9308, longitude: 77.5838, distanceKm: 3.4,
     deliveryCharge: 20, minOrderAmount: 79, deliveryRadiusKm: 6, deliveryType: 'both', isFeatured: true,
-    categoryIds: [2], openingTime: '07:00', closingTime: '22:00',
+    categoryIds: [2], openingTime: '07:00', closingTime: '22:00', certificate: 'FSSAI-11421001000456',
   },
   {
     ...base,
@@ -59,7 +60,7 @@ export const restaurants: Restaurant[] = [
     rating: 4.6, ratingCount: 1890, deliveryTimeMinutes: 38, priceRange: 2, isPureveg: false,
     address: 'Frazer Town Main Road', pincode: '560005', latitude: 12.9975, longitude: 77.6127, distanceKm: 6.5,
     deliveryCharge: 30, minOrderAmount: 149, deliveryRadiusKm: 10, deliveryType: 'delivery', isFeatured: true,
-    categoryIds: [5],
+    categoryIds: [5], certificate: 'FSSAI-11421001000789',
   },
   {
     ...base,

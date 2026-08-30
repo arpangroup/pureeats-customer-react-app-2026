@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Clock, Search, X } from 'lucide-react'
 import { useAsync } from '@/hooks/useAsync'
 import { restaurantService } from '@/services/restaurantService'
+import { menuService } from '@/services/menuService'
 import { RestaurantCard } from '@/components/restaurants/RestaurantCard'
+import { VegBadge } from '@/components/ui/VegBadge'
 import { EmptyState, Skeleton } from '@/components/ui/Feedback'
 import { readStorage, writeStorage } from '@/lib/storage'
+import { formatCurrency } from '@/lib/format'
 
 const RECENT_SEARCHES_KEY = 'pureeats.recentSearches'
 
@@ -21,6 +24,8 @@ export default function SearchPage() {
   }, [query])
 
   const { data: results, isLoading } = useAsync(() => restaurantService.search(debounced), [debounced])
+  const { data: categories } = useAsync(() => (debounced ? Promise.resolve(null) : restaurantService.categories()), [debounced])
+  const { data: popularDishes } = useAsync(() => (debounced ? Promise.resolve(null) : menuService.popularItems(8)), [debounced])
 
   function commitSearch(q: string) {
     if (!q.trim()) return
@@ -55,24 +60,65 @@ export default function SearchPage() {
 
       <div className="px-4 py-4">
         {!debounced ? (
-          recent.length > 0 ? (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Recent searches</p>
-              <div className="flex flex-wrap gap-2">
-                {recent.map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setQuery(r)}
-                    className="flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:text-slate-300"
-                  >
-                    <Clock size={12} /> {r}
-                  </button>
-                ))}
+          <div className="space-y-6">
+            {recent.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Recent searches</p>
+                <div className="flex flex-wrap gap-2">
+                  {recent.map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => setQuery(r)}
+                      className="flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-brand-300 hover:text-brand-600 dark:border-slate-700 dark:text-slate-300"
+                    >
+                      <Clock size={12} /> {r}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : (
-            <EmptyState title="Find your next meal" description="Search by restaurant name, cuisine, or dish." icon={<Search size={22} />} />
-          )
+            )}
+
+            {categories && categories.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Popular cuisines</p>
+                <div className="no-scrollbar flex gap-3 overflow-x-auto pb-1">
+                  {categories.map((c) => (
+                    <button key={c.id} onClick={() => navigate(`/category/${c.id}`)} className="flex w-16 shrink-0 flex-col items-center gap-1.5 text-center">
+                      <span className="h-14 w-14 overflow-hidden rounded-full border border-slate-200 dark:border-slate-800">
+                        <img src={c.image} alt={c.name} className="h-full w-full object-cover" />
+                      </span>
+                      <span className="text-[11px] font-medium leading-tight text-slate-600 dark:text-slate-300">{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {popularDishes && popularDishes.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Popular dishes near you</p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  {popularDishes.map((item) => (
+                    <button key={item.id} onClick={() => navigate(`/restaurants/${item.restaurantId}`)} className="card overflow-hidden text-left">
+                      <div className="aspect-square w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                        <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                      </div>
+                      <div className="p-2.5">
+                        <VegBadge isVeg={item.isVeg} size={11} />
+                        <p className="mt-0.5 truncate text-xs font-semibold text-slate-800 dark:text-slate-100">{item.name}</p>
+                        <p className="truncate text-[11px] text-slate-400">{item.restaurantName}</p>
+                        <p className="mt-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">{formatCurrency(item.price)}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {recent.length === 0 && !categories && !popularDishes && (
+              <EmptyState title="Find your next meal" description="Search by restaurant name, cuisine, or dish." icon={<Search size={22} />} />
+            )}
+          </div>
         ) : isLoading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 4 }).map((_, i) => (

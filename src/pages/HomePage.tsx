@@ -5,6 +5,7 @@ import { restaurantService } from '@/services/restaurantService'
 import { couponService } from '@/services/couponService'
 import { useActiveLocation } from '@/hooks/useLocation'
 import { RestaurantCard } from '@/components/restaurants/RestaurantCard'
+import { OngoingOrderBar } from '@/components/orders/OngoingOrderBar'
 import { Skeleton } from '@/components/ui/Feedback'
 
 export default function HomePage() {
@@ -99,6 +100,7 @@ export default function HomePage() {
           </>
         )}
       </div>
+      <OngoingOrderBar />
     </div>
   )
 }

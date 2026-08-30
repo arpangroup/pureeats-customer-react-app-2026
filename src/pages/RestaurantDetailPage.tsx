@@ -1,16 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Clock, Heart, MapPin, Star } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, Clock, Heart, List, MapPin, Search, ShieldCheck, Star, X } from 'lucide-react'
 import { useAsync } from '@/hooks/useAsync'
 import { restaurantService } from '@/services/restaurantService'
 import { menuService } from '@/services/menuService'
+import { couponService } from '@/services/couponService'
 import { useCart } from '@/hooks/useCart'
 import { useFavorites } from '@/hooks/useFavorites'
-import { LoadingBlock, EmptyState } from '@/components/ui/Feedback'
+import { LoadingBlock, EmptyState, Badge } from '@/components/ui/Feedback'
 import { MenuItemCard } from '@/components/restaurants/MenuItemCard'
 import { ItemAddonSheet } from '@/components/restaurants/ItemAddonSheet'
+import { MenuJumpSheet } from '@/components/restaurants/MenuJumpSheet'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { formatCurrency } from '@/lib/format'
+import { FreebieNudge } from '@/components/cart/FreebieNudge'
+import { getOpenStatus } from '@/lib/restaurantHours'
+import { classNames } from '@/lib/format'
 import type { CartAddon, MenuItem } from '@/types/entities'
 
 export default function RestaurantDetailPage() {
@@ -20,23 +24,33 @@ export default function RestaurantDetailPage() {
   const { data: restaurant, isLoading: loadingRestaurant } = useAsync(() => restaurantService.get(restaurantId), [restaurantId])
   const { data: items, isLoading: loadingItems } = useAsync(() => menuService.itemsForRestaurant(restaurantId), [restaurantId])
   const { data: categories } = useAsync(() => menuService.itemCategoriesForRestaurant(restaurantId), [restaurantId])
+  const { data: coupons } = useAsync(() => couponService.listForRestaurant(restaurantId), [restaurantId])
   const cart = useCart()
   const { isFavorite, toggleFavorite } = useFavorites()
 
   const [sheetItem, setSheetItem] = useState<MenuItem | null>(null)
   const [pendingAdd, setPendingAdd] = useState<{ item: MenuItem; addons: CartAddon[]; quantity: number } | null>(null)
+  const [dishQuery, setDishQuery] = useState('')
+  const [vegOnly, setVegOnly] = useState(false)
+  const [menuSheetOpen, setMenuSheetOpen] = useState(false)
+  const sectionRefs = useRef<Record<number, HTMLDivElement | null>>({})
+
+  const filteredItems = useMemo(() => {
+    if (!items) return []
+    const q = dishQuery.trim().toLowerCase()
+    return items.filter((i) => (!q || i.name.toLowerCase().includes(q)) && (!vegOnly || i.isVeg))
+  }, [items, dishQuery, vegOnly])
 
   const grouped = useMemo(() => {
-    if (!items) return []
     const categoryName = (categoryId: number) => categories?.find((c) => c.id === categoryId)?.name ?? 'Menu'
     const byCategory = new Map<number, MenuItem[]>()
-    for (const item of items) {
+    for (const item of filteredItems) {
       const list = byCategory.get(item.itemCategoryId) ?? []
       list.push(item)
       byCategory.set(item.itemCategoryId, list)
     }
     return [...byCategory.entries()].map(([categoryId, list]) => ({ categoryId, name: categoryName(categoryId), items: list }))
-  }, [items, categories])
+  }, [filteredItems, categories])
 
   function performAdd(item: MenuItem, addons: CartAddon[], quantity: number) {
     const cartItem = { itemId: item.id, name: item.name, price: item.price, image: item.image, isVeg: item.isVeg, addons, quantity }
@@ -62,8 +76,15 @@ export default function RestaurantDetailPage() {
     return cart.lines.find((l) => l.itemId === item.id && l.addons.length === 0)?.quantity ?? 0
   }
 
+  function scrollToCategory(categoryId: number) {
+    sectionRefs.current[categoryId]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   if (loadingRestaurant) return <LoadingBlock />
   if (!restaurant) return <EmptyState title="Restaurant not found" />
+
+  const openStatus = getOpenStatus(restaurant.openingTime, restaurant.closingTime)
+  const showNudge = cart.restaurantId === restaurantId && cart.lines.length > 0 && coupons
 
   return (
     <div>
@@ -101,17 +122,74 @@ export default function RestaurantDetailPage() {
             <MapPin size={14} className="shrink-0" /> {restaurant.address}
           </span>
         </div>
+        <div className="mt-2">
+          <Badge tone={openStatus.isOpen ? 'green' : 'red'}>
+            {openStatus.isOpen ? `Open now · Closes ${openStatus.closesAt}` : `Closed · Opens ${openStatus.opensAt}`}
+          </Badge>
+        </div>
+
+        {coupons && coupons.length > 0 && (
+          <div className="no-scrollbar -mx-4 mt-3.5 flex gap-3 overflow-x-auto px-4 pb-1">
+            {coupons.map((c) => (
+              <div key={c.id} className="flex min-w-[200px] shrink-0 items-center gap-2 rounded-xl border border-dashed border-brand-300 bg-brand-50 px-3 py-2.5 dark:border-brand-500/40 dark:bg-brand-500/10">
+                <BadgeCheck size={16} className="shrink-0 text-brand-600" />
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-brand-700 dark:text-brand-400">{c.name}</p>
+                  <p className="truncate text-[11px] text-brand-600/80 dark:text-brand-400/70">
+                    Code <span className="font-mono font-semibold">{c.code}</span>
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="border-t-8 border-slate-100 px-4 py-4 dark:border-slate-800">
-        <h2 className="mb-1 text-lg font-bold text-slate-800 dark:text-slate-100">Menu</h2>
+      <div className="sticky top-0 z-10 border-y border-slate-100 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
+        <div className="flex items-center gap-2">
+          <div className="input flex flex-1 items-center gap-2">
+            <Search size={15} className="shrink-0 text-slate-400" />
+            <input
+              value={dishQuery}
+              onChange={(e) => setDishQuery(e.target.value)}
+              placeholder="Search for dishes"
+              className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+            />
+            {dishQuery && (
+              <button onClick={() => setDishQuery('')} aria-label="Clear">
+                <X size={14} className="text-slate-400" />
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => setMenuSheetOpen(true)}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:text-slate-300"
+          >
+            <List size={15} /> Menu
+          </button>
+        </div>
+
+        <label className="mt-3 flex w-fit items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+          <button
+            role="switch"
+            aria-checked={vegOnly}
+            onClick={() => setVegOnly((v) => !v)}
+            className={classNames('relative h-5 w-9 shrink-0 rounded-full transition-colors', vegOnly ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700')}
+          >
+            <span className={classNames('absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform', vegOnly ? 'translate-x-4' : 'translate-x-0.5')} />
+          </button>
+          Veg only
+        </label>
+      </div>
+
+      <div className="border-b-8 border-slate-100 px-4 py-4 dark:border-slate-800">
         {loadingItems ? (
           <LoadingBlock />
         ) : grouped.length === 0 ? (
-          <EmptyState title="Menu unavailable" />
+          <EmptyState title="No dishes found" description={dishQuery ? `Nothing matches "${dishQuery}".` : undefined} />
         ) : (
           grouped.map((group) => (
-            <div key={group.categoryId} className="mt-4">
+            <div key={group.categoryId} ref={(el) => { sectionRefs.current[group.categoryId] = el }} className="mt-4 scroll-mt-24">
               <h3 className="mb-1 text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 {group.name} ({group.items.length})
               </h3>
@@ -142,7 +220,20 @@ export default function RestaurantDetailPage() {
         )}
       </div>
 
+      {restaurant.certificate && (
+        <div className="flex items-center gap-2.5 px-4 py-4 text-xs text-slate-500 dark:text-slate-400">
+          <ShieldCheck size={16} className="shrink-0 text-slate-400" />
+          <span>
+            FSSAI License No. <span className="font-mono font-medium text-slate-600 dark:text-slate-300">{restaurant.certificate}</span>
+          </span>
+        </div>
+      )}
+
       <ItemAddonSheet item={sheetItem} open={!!sheetItem} onClose={() => setSheetItem(null)} onConfirm={(addons, quantity) => sheetItem && performAdd(sheetItem, addons, quantity)} />
+
+      <MenuJumpSheet open={menuSheetOpen} onClose={() => setMenuSheetOpen(false)} groups={grouped} onSelect={scrollToCategory} />
+
+      {showNudge && <FreebieNudge coupons={coupons} subtotal={cart.subtotal} />}
 
       <ConfirmDialog
         open={!!pendingAdd}

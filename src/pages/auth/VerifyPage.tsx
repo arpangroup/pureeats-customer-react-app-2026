@@ -10,6 +10,7 @@ interface PendingChallenge {
   maskedDestination: string
   expiresIn: number
   resendAvailableIn: number
+  from?: string
 }
 
 const PENDING_CHALLENGE_KEY = 'pureeats.auth.pendingChallenge'
@@ -63,7 +64,7 @@ export default function VerifyPage() {
     try {
       await verifyOtp({ challengeId: challenge!.challengeId, otp })
       sessionStorage.removeItem(PENDING_CHALLENGE_KEY)
-      navigate('/', { replace: true })
+      navigate(challenge!.from ?? '/', { replace: true })
     } catch {
       // error is surfaced via auth context
     }

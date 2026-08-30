@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { LoadingBlock, EmptyState } from '@/components/ui/Feedback'
 import { OrderStatusTimeline } from '@/components/orders/OrderStatusTimeline'
 import { OrderTrackingMap } from '@/components/maps/OrderTrackingMap'
+import { RequireAuth } from '@/components/auth/RequireAuth'
 import { useAsync } from '@/hooks/useAsync'
 import { useAuth } from '@/hooks/useAuth'
 import { useActiveLocation } from '@/hooks/useLocation'
@@ -17,19 +18,13 @@ const TRACKABLE_STATUSES = ['PLACED', 'RESTAURANT_ACCEPTED', 'READY_FOR_PICKUP',
 export default function OrderTrackingPage() {
   const { id } = useParams()
   const orderId = Number(id)
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const { activeAddress } = useActiveLocation()
   const navigate = useNavigate()
   const { data: order, isLoading, reload } = useAsync(() => (user ? orderService.get(user.id, orderId) : Promise.resolve(undefined)), [user?.id, orderId])
   const { data: timeline } = useAsync(() => (user ? orderService.timeline(user.id, orderId) : Promise.resolve(undefined)), [user?.id, orderId])
   const { data: restaurant } = useAsync(() => (order ? restaurantService.get(order.restaurantId) : Promise.resolve(undefined)), [order?.restaurantId])
   const [cancelling, setCancelling] = useState(false)
-
-  if (isLoading) return <LoadingBlock />
-  if (!order) return <EmptyState title="Order not found" />
-
-  const canCancel = order.legalNextStatuses.includes('CANCELLED')
-  const canRate = order.status === 'DELIVERED' && !order.isRated
 
   async function handleCancel() {
     if (!user || !window.confirm('Cancel this order?')) return
@@ -43,6 +38,23 @@ export default function OrderTrackingPage() {
       setCancelling(false)
     }
   }
+
+  if (!isAuthenticated) {
+    return (
+      <div>
+        <PageHeader title="Order" />
+        <div className="mx-auto max-w-lg px-4 py-4">
+          <RequireAuth title="Sign in to track this order" description="Order tracking lives with your account." />
+        </div>
+      </div>
+    )
+  }
+
+  if (isLoading) return <LoadingBlock />
+  if (!order) return <EmptyState title="Order not found" />
+
+  const canCancel = order.legalNextStatuses.includes('CANCELLED')
+  const canRate = order.status === 'DELIVERED' && !order.isRated
 
   return (
     <div>
