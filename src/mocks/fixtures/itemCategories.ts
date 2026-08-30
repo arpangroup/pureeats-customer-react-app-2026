@@ -1,0 +1,27 @@
+import type { ItemCategory } from '@/types/entities'
+
+export const itemCategories: ItemCategory[] = [
+  { id: 1, restaurantId: 1, name: 'Starters', isEnabled: true },
+  { id: 2, restaurantId: 1, name: 'Main Course', isEnabled: true },
+  { id: 3, restaurantId: 1, name: 'Breads', isEnabled: true },
+  { id: 4, restaurantId: 2, name: 'Dosas', isEnabled: true },
+  { id: 5, restaurantId: 2, name: 'Idli & Vada', isEnabled: true },
+  { id: 6, restaurantId: 2, name: 'Beverages', isEnabled: true },
+  { id: 7, restaurantId: 3, name: 'Pizzas', isEnabled: true },
+  { id: 8, restaurantId: 3, name: 'Sides', isEnabled: true },
+  { id: 9, restaurantId: 4, name: 'Starters', isEnabled: true },
+  { id: 10, restaurantId: 4, name: 'Main Course', isEnabled: true },
+  { id: 11, restaurantId: 5, name: 'Biryani', isEnabled: true },
+  { id: 12, restaurantId: 5, name: 'Sides', isEnabled: true },
+  { id: 13, restaurantId: 6, name: 'Cakes', isEnabled: true },
+  { id: 14, restaurantId: 6, name: 'Pastries & Cookies', isEnabled: true },
+  { id: 15, restaurantId: 7, name: 'Salads', isEnabled: true },
+  { id: 16, restaurantId: 7, name: 'Bowls', isEnabled: true },
+  { id: 17, restaurantId: 8, name: 'Burgers', isEnabled: true },
+  { id: 18, restaurantId: 8, name: 'Sides & Shakes', isEnabled: true },
+  { id: 19, restaurantId: 9, name: 'Main Course', isEnabled: true },
+  { id: 20, restaurantId: 9, name: 'Breads', isEnabled: true },
+  { id: 21, restaurantId: 10, name: 'Breakfast', isEnabled: true },
+  { id: 22, restaurantId: 11, name: 'Pizzas', isEnabled: true },
+  { id: 23, restaurantId: 12, name: 'Main Course', isEnabled: true },
+]

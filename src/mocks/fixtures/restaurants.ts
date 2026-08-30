@@ -1,0 +1,127 @@
+import { placeholderImage } from '@/lib/placeholderImage'
+import type { Restaurant } from '@/types/entities'
+
+function img(emoji: string, from: string, to: string) {
+  return placeholderImage(emoji, from, to)
+}
+
+const base = {
+  landmark: '',
+  isSchedulable: true,
+  isActive: true,
+  isAccepted: true,
+  isAcceptCod: true,
+  openingTime: '10:00',
+  closingTime: '23:00',
+}
+
+export const restaurants: Restaurant[] = [
+  {
+    ...base,
+    id: 1, name: 'Spice Villa', slug: 'spice-villa', description: 'Rich, buttery North Indian curries and tandoor classics.',
+    image: img('🍛', '#fb923c', '#e04a1a'), coverImage: img('🍛', '#fb923c', '#e04a1a'), contactNumber: '9811100001',
+    rating: 4.5, ratingCount: 1240, deliveryTimeMinutes: 32, priceRange: 2, isPureveg: false,
+    address: '12, 5th Block, Koramangala', pincode: '560095', latitude: 12.9346, longitude: 77.6104, distanceKm: 2.1,
+    deliveryCharge: 25, minOrderAmount: 99, deliveryRadiusKm: 8, deliveryType: 'delivery', isFeatured: true,
+    categoryIds: [1],
+  },
+  {
+    ...base,
+    id: 2, name: 'Dosa Junction', slug: 'dosa-junction', description: 'Crispy dosas, soft idlis and filter coffee since 1998.',
+    image: img('🥞', '#fbbf24', '#d97706'), coverImage: img('🥞', '#fbbf24', '#d97706'), contactNumber: '9811100002',
+    rating: 4.7, ratingCount: 2103, deliveryTimeMinutes: 25, priceRange: 1, isPureveg: true,
+    address: '45, 4th Main, Jayanagar', pincode: '560011', latitude: 12.9308, longitude: 77.5838, distanceKm: 3.4,
+    deliveryCharge: 20, minOrderAmount: 79, deliveryRadiusKm: 6, deliveryType: 'both', isFeatured: true,
+    categoryIds: [2], openingTime: '07:00', closingTime: '22:00',
+  },
+  {
+    ...base,
+    id: 3, name: 'Pizza Bella', slug: 'pizza-bella', description: 'Wood-fired pizzas with fresh, local toppings.',
+    image: img('🍕', '#f87171', '#b91c1c'), coverImage: img('🍕', '#f87171', '#b91c1c'), contactNumber: '9811100003',
+    rating: 4.3, ratingCount: 876, deliveryTimeMinutes: 35, priceRange: 2, isPureveg: false,
+    address: '100 Feet Road, Indiranagar', pincode: '560038', latitude: 12.9719, longitude: 77.6412, distanceKm: 5.2,
+    deliveryCharge: 30, minOrderAmount: 149, deliveryRadiusKm: 10, deliveryType: 'both', isFeatured: false,
+    categoryIds: [3], openingTime: '11:00', closingTime: '23:30',
+  },
+  {
+    ...base,
+    id: 4, name: 'Wok This Way', slug: 'wok-this-way', description: 'Indo-Chinese favorites, wok-tossed to order.',
+    image: img('🥡', '#fb7185', '#be123c'), coverImage: img('🥡', '#fb7185', '#be123c'), contactNumber: '9811100004',
+    rating: 4.2, ratingCount: 654, deliveryTimeMinutes: 30, priceRange: 2, isPureveg: false,
+    address: 'Church Street, MG Road', pincode: '560001', latitude: 12.9758, longitude: 77.6045, distanceKm: 4.0,
+    deliveryCharge: 28, minOrderAmount: 129, deliveryRadiusKm: 9, deliveryType: 'delivery', isFeatured: false,
+    categoryIds: [4],
+  },
+  {
+    ...base,
+    id: 5, name: 'Biryani Nawab', slug: 'biryani-nawab', description: 'Dum-cooked biryanis in the old Hyderabadi style.',
+    image: img('🍚', '#fbbf24', '#b45309'), coverImage: img('🍚', '#fbbf24', '#b45309'), contactNumber: '9811100005',
+    rating: 4.6, ratingCount: 1890, deliveryTimeMinutes: 38, priceRange: 2, isPureveg: false,
+    address: 'Frazer Town Main Road', pincode: '560005', latitude: 12.9975, longitude: 77.6127, distanceKm: 6.5,
+    deliveryCharge: 30, minOrderAmount: 149, deliveryRadiusKm: 10, deliveryType: 'delivery', isFeatured: true,
+    categoryIds: [5],
+  },
+  {
+    ...base,
+    id: 6, name: 'Sweet Treats Bakery', slug: 'sweet-treats-bakery', description: 'Cakes, pastries and desserts baked fresh daily.',
+    image: img('🍰', '#f0abfc', '#a21caf'), coverImage: img('🍰', '#f0abfc', '#a21caf'), contactNumber: '9811100006',
+    rating: 4.8, ratingCount: 987, deliveryTimeMinutes: 22, priceRange: 2, isPureveg: true,
+    address: '80 Feet Road, HSR Layout', pincode: '560102', latitude: 12.9151, longitude: 77.6386, distanceKm: 3.9,
+    deliveryCharge: 22, minOrderAmount: 99, deliveryRadiusKm: 7, deliveryType: 'both', isFeatured: false,
+    categoryIds: [6],
+  },
+  {
+    ...base,
+    id: 7, name: 'Green Bowl Cafe', slug: 'green-bowl-cafe', description: 'Salads, smoothie bowls and healthy wraps.',
+    image: img('🥗', '#86efac', '#15803d'), coverImage: img('🥗', '#86efac', '#15803d'), contactNumber: '9811100007',
+    rating: 4.6, ratingCount: 543, deliveryTimeMinutes: 28, priceRange: 2, isPureveg: true,
+    address: '27th Main, HSR Layout', pincode: '560102', latitude: 12.9151, longitude: 77.6386, distanceKm: 3.9,
+    deliveryCharge: 22, minOrderAmount: 99, deliveryRadiusKm: 7, deliveryType: 'delivery', isFeatured: true,
+    categoryIds: [7], openingTime: '08:00', closingTime: '21:00',
+  },
+  {
+    ...base,
+    id: 8, name: 'Burger Barn', slug: 'burger-barn', description: 'Juicy smash burgers, loaded fries and shakes.',
+    image: img('🍔', '#fdba74', '#c2410c'), coverImage: img('🍔', '#fdba74', '#c2410c'), contactNumber: '9811100008',
+    rating: 4.1, ratingCount: 1345, deliveryTimeMinutes: 24, priceRange: 1, isPureveg: false,
+    address: 'BTM Layout 2nd Stage', pincode: '560076', latitude: 12.9166, longitude: 77.6101, distanceKm: 2.8,
+    deliveryCharge: 20, minOrderAmount: 79, deliveryRadiusKm: 6, deliveryType: 'both', isFeatured: false,
+    categoryIds: [8],
+  },
+  {
+    ...base,
+    id: 9, name: 'Punjabi Tadka', slug: 'punjabi-tadka', description: 'Home-style dal, sabzi and tandoori roti.',
+    image: img('🫓', '#fb923c', '#c2410c'), coverImage: img('🫓', '#fb923c', '#c2410c'), contactNumber: '9811100009',
+    rating: 4.4, ratingCount: 765, deliveryTimeMinutes: 33, priceRange: 1, isPureveg: false,
+    address: 'Vijayanagar 1st Main', pincode: '560040', latitude: 12.9707, longitude: 77.5364, distanceKm: 7.8,
+    deliveryCharge: 25, minOrderAmount: 99, deliveryRadiusKm: 8, deliveryType: 'delivery', isFeatured: false,
+    categoryIds: [1],
+  },
+  {
+    ...base,
+    id: 10, name: 'Idli Dosa Express', slug: 'idli-dosa-express', description: 'Quick South Indian breakfast, all day long.',
+    image: img('🥞', '#fde68a', '#b45309'), coverImage: img('🥞', '#fde68a', '#b45309'), contactNumber: '9811100010',
+    rating: 4.5, ratingCount: 998, deliveryTimeMinutes: 20, priceRange: 1, isPureveg: true,
+    address: 'Malleshwaram 8th Cross', pincode: '560003', latitude: 13.0067, longitude: 77.5709, distanceKm: 8.6,
+    deliveryCharge: 18, minOrderAmount: 59, deliveryRadiusKm: 5, deliveryType: 'both', isFeatured: false,
+    categoryIds: [2], openingTime: '06:30', closingTime: '20:00',
+  },
+  {
+    ...base,
+    id: 11, name: 'Cheesy Slice', slug: 'cheesy-slice', description: 'All-vegetarian pizzeria, extra cheese always.',
+    image: img('🍕', '#fca5a5', '#dc2626'), coverImage: img('🍕', '#fca5a5', '#dc2626'), contactNumber: '9811100011',
+    rating: 4.3, ratingCount: 432, deliveryTimeMinutes: 30, priceRange: 2, isPureveg: true,
+    address: 'Whitefield Main Road', pincode: '560066', latitude: 12.9698, longitude: 77.7500, distanceKm: 12.4,
+    deliveryCharge: 32, minOrderAmount: 149, deliveryRadiusKm: 9, deliveryType: 'delivery', isFeatured: false,
+    categoryIds: [3],
+  },
+  {
+    ...base,
+    id: 12, name: 'Dragon Wok', slug: 'dragon-wok', description: 'Sichuan-style Chinese with a spicy kick.',
+    image: img('🐉', '#f87171', '#7f1d1d'), coverImage: img('🐉', '#f87171', '#7f1d1d'), contactNumber: '9811100012',
+    rating: 4.0, ratingCount: 321, deliveryTimeMinutes: 34, priceRange: 2, isPureveg: false,
+    address: 'Marathahalli Bridge', pincode: '560037', latitude: 12.9569, longitude: 77.7011, distanceKm: 9.7,
+    deliveryCharge: 28, minOrderAmount: 129, deliveryRadiusKm: 8, deliveryType: 'delivery', isFeatured: false,
+    categoryIds: [4],
+  },
+]
