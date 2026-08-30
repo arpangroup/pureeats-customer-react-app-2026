@@ -58,4 +58,4 @@ jobs:
       - name: Reload Apache
         run: |
           ssh "${DEPLOY_USER}@${{ secrets.DEPLOY_HOST }}" \
-            'sudo /usr/sbin/apache2ctl reload'
+            'sudo /bin/systemctl reload apache2'
