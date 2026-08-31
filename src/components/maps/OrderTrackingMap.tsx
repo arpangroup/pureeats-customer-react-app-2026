@@ -1,32 +1,19 @@
-import { useEffect, useState } from 'react'
 import { GoogleMap, Marker, Polyline } from '@react-google-maps/api'
 import { useGoogleMaps } from '@/lib/googleMaps'
-import { MapUnavailable } from './MapUnavailable'
+import { OsmOrderTrackingMap } from './OsmOrderTrackingMap'
+import { lerp, useRiderProgress, type LatLng } from '@/lib/orderTrackingProgress'
 import type { OrderStatus } from '@/types/entities'
 
 const MAP_CONTAINER_STYLE = { width: '100%', height: '200px', borderRadius: '12px' }
 
-interface Point {
-  lat: number
-  lng: number
-}
-
-function lerp(a: Point, b: Point, t: number): Point {
-  return { lat: a.lat + (b.lat - a.lat) * t, lng: a.lng + (b.lng - a.lng) * t }
-}
-
 /** Restaurant + delivery-address markers, plus a simulated rider marker that eases along the route once a rider is assigned — purely cosmetic (no real GPS feed) but gives the tracking page a live feel. */
-export function OrderTrackingMap({ restaurant, destination, status }: { restaurant: Point; destination: Point; status: OrderStatus }) {
+export function OrderTrackingMap({ restaurant, destination, status }: { restaurant: LatLng; destination: LatLng; status: OrderStatus }) {
   const { isLoaded, loadError, hasApiKey } = useGoogleMaps()
-  const [progress, setProgress] = useState(status === 'PICKED_UP' ? 0.15 : status === 'DELIVERED' || status === 'SELF_PICKUP_COMPLETED' ? 1 : 0)
+  const progress = useRiderProgress(status)
 
-  useEffect(() => {
-    if (status !== 'PICKED_UP') return
-    const interval = setInterval(() => setProgress((p) => Math.min(0.95, p + 0.05)), 2000)
-    return () => clearInterval(interval)
-  }, [status])
-
-  if (!hasApiKey || loadError) return <MapUnavailable hasApiKey={hasApiKey} reason={loadError ? 'Map failed to load' : undefined} />
+  // No Google Maps API key configured, or the Google script failed to load — fall back to the
+  // free OpenStreetMap picker instead of leaving order tracking without a working map.
+  if (!hasApiKey || loadError) return <OsmOrderTrackingMap restaurant={restaurant} destination={destination} status={status} />
   if (!isLoaded) return <div className="flex h-[200px] items-center justify-center text-xs text-slate-400">Loading map…</div>
 
   const showRider = status === 'RIDER_ASSIGNED' || status === 'PICKED_UP' || status === 'DELIVERED'

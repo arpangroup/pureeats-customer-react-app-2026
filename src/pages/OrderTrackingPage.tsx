@@ -63,7 +63,10 @@ export default function OrderTrackingPage() {
         <div className="card p-4">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
-              <img src={order.restaurantImage} alt={order.restaurantName} className="h-full w-full object-cover" />
+              {/* The live order endpoint doesn't return a restaurant image (OrderRestaurantSummary
+                  only carries id/name/contactNumber) — fall back to the restaurant fetched
+                  separately for the map below, which always has one. */}
+              <img src={order.restaurantImage || restaurant?.image} alt={order.restaurantName} className="h-full w-full object-cover" />
             </div>
             <div className="min-w-0">
               <p className="truncate font-semibold text-slate-800 dark:text-slate-100">{order.restaurantName}</p>

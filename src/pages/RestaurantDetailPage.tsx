@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BadgeCheck, Clock, Heart, List, MapPin, Search, ShieldCheck, Star, X } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, Clock, Heart, Info, List, MapPin, Search, ShieldCheck, Star, X } from 'lucide-react'
 import { useAsync } from '@/hooks/useAsync'
 import { restaurantService } from '@/services/restaurantService'
 import { menuService } from '@/services/menuService'
@@ -67,6 +67,19 @@ export default function RestaurantDetailPage() {
       return
     }
     performAdd(item, [], 1)
+  }
+
+  /** The sheet's stepper is seeded from the existing no-addon cart line (if any) — when that's
+   * the case, confirming should set that line's quantity, not add the sheet's quantity on top of it. */
+  function handleSheetConfirm(item: MenuItem, addons: CartAddon[], quantity: number) {
+    if (addons.length === 0) {
+      const line = cart.lines.find((l) => l.itemId === item.id && l.addons.length === 0)
+      if (line) {
+        cart.updateQuantity(line.key, quantity)
+        return
+      }
+    }
+    performAdd(item, addons, quantity)
   }
 
   function quantityFor(item: MenuItem): number {
@@ -200,6 +213,7 @@ export default function RestaurantDetailPage() {
                     item={item}
                     quantityInCart={quantityFor(item)}
                     onAdd={() => handleAddClick(item)}
+                    onView={() => setSheetItem(item)}
                     onQuantityChange={
                       item.addonCategoryIds.length === 0
                         ? (next) => {
@@ -221,7 +235,7 @@ export default function RestaurantDetailPage() {
       </div>
 
       {restaurant.certificate && (
-        <div className="flex items-center gap-2.5 px-4 py-4 text-xs text-slate-500 dark:text-slate-400">
+        <div className="border-b-8 border-slate-100 flex items-center gap-2.5 px-4 py-4 text-xs text-slate-500 dark:text-slate-400">
           <ShieldCheck size={16} className="shrink-0 text-slate-400" />
           <span>
             FSSAI License No. <span className="font-mono font-medium text-slate-600 dark:text-slate-300">{restaurant.certificate}</span>
@@ -229,7 +243,30 @@ export default function RestaurantDetailPage() {
         </div>
       )}
 
-      <ItemAddonSheet item={sheetItem} open={!!sheetItem} onClose={() => setSheetItem(null)} onConfirm={(addons, quantity) => sheetItem && performAdd(sheetItem, addons, quantity)} />
+      <div className="mt-2 border-t border-slate-100 px-4 pb-8 pt-4 dark:border-slate-800 md:pb-4">
+        <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <Info size={14} /> Disclaimer
+        </h3>
+        <ul className="list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+          <li>All prices are set directly by the restaurant.</li>
+          <li>All nutritional information is indicative — values are per serve as shared by the restaurant and may vary depending on ingredients and portion size.</li>
+          <li>Images are for representational purposes only; the actual item may vary.</li>
+          <li>Please inform the restaurant of any allergies or dietary restrictions before ordering.</li>
+        </ul>
+      </div>
+
+      {/* AppShell's <main> only reserves enough bottom padding for the tab bar — when the
+          freebie nudge stacks on top of the floating cart bar too, a short menu list has
+          nothing left to scroll past, so the last item's quantity stepper sits under them. */}
+      {showNudge && <div className="h-[4.25rem] md:hidden" aria-hidden />}
+
+      <ItemAddonSheet
+        item={sheetItem}
+        open={!!sheetItem}
+        onClose={() => setSheetItem(null)}
+        onConfirm={(addons, quantity) => sheetItem && handleSheetConfirm(sheetItem, addons, quantity)}
+        initialQuantity={sheetItem && sheetItem.addonCategoryIds.length === 0 ? Math.max(1, quantityFor(sheetItem)) : 1}
+      />
 
       <MenuJumpSheet open={menuSheetOpen} onClose={() => setMenuSheetOpen(false)} groups={grouped} onSelect={scrollToCategory} />
 

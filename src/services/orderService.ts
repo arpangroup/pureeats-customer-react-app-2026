@@ -156,7 +156,10 @@ export const orderService = {
       restaurantId: input.restaurantId,
       addressId: input.addressId,
       items: input.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity, selectedAddonIds: null })),
-      paymentMode: input.paymentMode,
+      // The backend's PaymentMode enum has no bare UPI value — it names payment by gateway
+      // (COD, WALLET, RAZORPAY, PAYTM, ...) since only COD/WALLET are actually processed server-side;
+      // everything else is just recorded. RAZORPAY is the closest real value for "paid via UPI".
+      paymentMode: input.paymentMode === 'UPI' ? 'RAZORPAY' : input.paymentMode,
       deliveryType: input.deliveryType,
       couponCode: input.coupon?.code ?? null,
       orderComment: input.orderComment,

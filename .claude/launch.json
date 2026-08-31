@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "customer-app-preview",
+      "name": "customer-app-uat",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "preview", "--", "--port", "4173"],
-      "port": 4173
+      "runtimeArgs": ["run", "dev:uat"],
+      "port": 5273
     }
   ]
 }

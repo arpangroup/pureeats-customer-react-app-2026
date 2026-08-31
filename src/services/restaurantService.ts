@@ -1,10 +1,47 @@
 import { apiClient } from '@/lib/apiClient'
 import { mockDelay } from '@/lib/mockUtils'
 import { toNumber } from '@/lib/format'
+import { placeholderImage } from '@/lib/placeholderImage'
 import { IS_MOCK } from '@/config/env'
 import { restaurants } from '@/mocks/fixtures/restaurants'
 import { restaurantCategories } from '@/mocks/fixtures/restaurantCategories'
 import type { Restaurant, RestaurantCategory, RestaurantDeliveryType } from '@/types/entities'
+
+// The live /restaurant-categories endpoint doesn't return an image yet — fall back to a
+// placeholder built client-side, same as mock mode. Known cuisine names get the same
+// emoji/colors the mock fixtures use; anything else gets a deterministic pick from a
+// varied palette so unrelated categories don't all look identical.
+const CATEGORY_ICONS: Record<string, [emoji: string, from: string, to: string]> = {
+  'north indian': ['🍛', '#fb923c', '#e04a1a'],
+  'south indian': ['🥞', '#fbbf24', '#d97706'],
+  pizza: ['🍕', '#f87171', '#b91c1c'],
+  chinese: ['🥡', '#fb7185', '#be123c'],
+  biryani: ['🍚', '#fbbf24', '#b45309'],
+  desserts: ['🍰', '#f0abfc', '#a21caf'],
+  healthy: ['🥗', '#86efac', '#15803d'],
+  'fast food': ['🍔', '#fdba74', '#c2410c'],
+}
+
+const FALLBACK_CATEGORY_ICONS: [emoji: string, from: string, to: string][] = [
+  ['🍜', '#93c5fd', '#1d4ed8'],
+  ['🍣', '#5eead4', '#0f766e'],
+  ['🌮', '#fde68a', '#b45309'],
+  ['🥘', '#fca5a5', '#b91c1c'],
+  ['🍱', '#c4b5fd', '#6d28d9'],
+  ['🥙', '#fdba74', '#c2410c'],
+]
+
+function hashString(value: string): number {
+  let hash = 0
+  for (let i = 0; i < value.length; i++) hash = (hash * 31 + value.charCodeAt(i)) | 0
+  return Math.abs(hash)
+}
+
+function defaultCategoryImage(name: string): string {
+  const known = CATEGORY_ICONS[name.trim().toLowerCase()]
+  const [emoji, from, to] = known ?? FALLBACK_CATEGORY_ICONS[hashString(name) % FALLBACK_CATEGORY_ICONS.length]
+  return placeholderImage(emoji, from, to)
+}
 
 interface LiveRestaurantSummary {
   id: number
@@ -121,6 +158,6 @@ export const restaurantService = {
       return restaurantCategories.filter((c) => c.isActive)
     }
     const { data } = await apiClient.get<{ data: RestaurantCategory[] }>('/restaurant-categories')
-    return data.data
+    return data.data.map((c) => ({ ...c, image: c.image || defaultCategoryImage(c.name) }))
   },
 }

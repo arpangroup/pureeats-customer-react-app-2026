@@ -9,17 +9,19 @@ export function MenuItemCard({
   quantityInCart,
   onAdd,
   onQuantityChange,
+  onView,
 }: {
   item: MenuItem
   quantityInCart: number
   onAdd: () => void
   onQuantityChange?: (next: number) => void
+  onView: () => void
 }) {
   const hasAddons = item.addonCategoryIds.length > 0
 
   return (
     <div className="flex gap-3 border-b border-slate-100 py-4 last:border-0 dark:border-slate-800">
-      <div className="min-w-0 flex-1">
+      <button onClick={onView} className="min-w-0 flex-1 text-left">
         <VegBadge isVeg={item.isVeg} />
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
           {item.isRecommended && (
@@ -44,12 +46,12 @@ export function MenuItemCard({
           {item.oldPrice && <span className="text-xs text-slate-400 line-through">{formatCurrency(item.oldPrice)}</span>}
         </p>
         {item.description && <p className="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{item.description}</p>}
-      </div>
+      </button>
 
       <div className="flex w-28 shrink-0 flex-col items-center gap-2">
-        <div className="h-24 w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+        <button onClick={onView} className="h-24 w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800" aria-label={`View ${item.name}`}>
           <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
-        </div>
+        </button>
         {hasAddons || !onQuantityChange || quantityInCart === 0 ? (
           <button
             onClick={onAdd}

@@ -21,6 +21,9 @@ export const walletService = {
       return [...(walletTransactionsByUser[userId] ?? [])].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     }
     const { data } = await apiClient.get<{ data: { id: number; type: string; amount: string; meta: string | null; createdAt: string }[] }>('/users/me/wallet/transactions')
-    return data.data.map((t) => ({ id: t.id, type: t.type === 'credit' ? 'credit' : 'debit', amount: toNumber(t.amount), note: t.meta, createdAt: t.createdAt }))
+    // The customer-facing endpoint sends the raw ledger type ('deposit' / 'withdraw' —
+    // WalletService.TX_TYPE_DEPOSIT/TX_TYPE_WITHDRAW), unlike the admin endpoints which already
+    // translate to 'credit'/'debit'. Map it here so a deposit doesn't render as a debit.
+    return data.data.map((t) => ({ id: t.id, type: t.type === 'deposit' ? 'credit' : 'debit', amount: toNumber(t.amount), note: t.meta, createdAt: t.createdAt }))
   },
 }

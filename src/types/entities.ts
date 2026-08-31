@@ -131,7 +131,7 @@ export interface Address {
   isDefault: boolean
 }
 
-export type PaymentMode = 'COD' | 'WALLET' | 'ONLINE'
+export type PaymentMode = 'COD' | 'WALLET' | 'UPI'
 export type OrderDeliveryType = 'DELIVERY' | 'SELF_PICKUP'
 
 export interface CartAddon {
