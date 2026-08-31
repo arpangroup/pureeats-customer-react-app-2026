@@ -148,7 +148,7 @@ export default function CartPage() {
           </div>
         </div>
 
-        {needsAddress && (
+        {needsAddress && isAuthenticated && (
           <button onClick={() => navigate('/profile/addresses')} className="card mt-4 flex w-full items-center gap-3 p-4 text-left">
             <MapPin size={18} className="shrink-0 text-brand-600" />
             <div className="min-w-0 flex-1">

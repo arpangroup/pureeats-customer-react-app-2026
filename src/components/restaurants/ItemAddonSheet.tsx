@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Sheet } from '@/components/ui/Sheet'
 import { QuantityStepper } from '@/components/ui/QuantityStepper'
 import { LoadingBlock } from '@/components/ui/Feedback'
+import { VegBadge } from '@/components/ui/VegBadge'
 import { useAsync } from '@/hooks/useAsync'
 import { menuService } from '@/services/menuService'
 import { formatCurrency } from '@/lib/format'
@@ -13,21 +14,25 @@ export function ItemAddonSheet({
   open,
   onClose,
   onConfirm,
+  initialQuantity = 1,
 }: {
   item: MenuItem | null
   open: boolean
   onClose: () => void
   onConfirm: (addons: CartAddon[], quantity: number) => void
+  /** Seeds the stepper with what's already in the cart for this item (base, no-addon line) — otherwise reopening the sheet always looked like a fresh add. */
+  initialQuantity?: number
 }) {
   const { data: groups, isLoading } = useAsync(() => (item ? menuService.addonGroupsForItem(item.id) : Promise.resolve([])), [item?.id])
   const [selected, setSelected] = useState<Record<number, number[]>>({})
-  const [quantity, setQuantity] = useState(1)
+  const [quantity, setQuantity] = useState(initialQuantity)
 
   useEffect(() => {
     if (open) {
       setSelected({})
-      setQuantity(1)
+      setQuantity(initialQuantity)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, item?.id])
 
   if (!item) return null
@@ -76,6 +81,16 @@ export function ItemAddonSheet({
         <LoadingBlock />
       ) : (
         <div className="space-y-5">
+          <div className="-mx-5 -mt-4 aspect-video w-[calc(100%+2.5rem)] overflow-hidden bg-slate-100 dark:bg-slate-800">
+            <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+          </div>
+          <div>
+            <VegBadge isVeg={item.isVeg} />
+            <p className="mt-1.5 flex items-baseline gap-2 text-sm">
+              <span className="font-semibold text-slate-800 dark:text-slate-100">{formatCurrency(item.price)}</span>
+              {item.oldPrice && <span className="text-xs text-slate-400 line-through">{formatCurrency(item.oldPrice)}</span>}
+            </p>
+          </div>
           {item.description && <p className="text-sm text-slate-500 dark:text-slate-400">{item.description}</p>}
           {(groups ?? []).map(({ category, addons }) => (
             <div key={category.id}>

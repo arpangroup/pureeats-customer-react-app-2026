@@ -39,8 +39,9 @@ export const couponService = {
       await mockDelay(150)
       return coupons.filter((c) => c.isActive && c.restaurantId === null)
     }
-    const { data } = await apiClient.get<{ data: Coupon[] }>('/coupons')
-    return data.data.filter((c) => c.restaurantId === null)
+    // TODO(backend): GET /coupons requires a restaurantId — no restaurant-agnostic
+    // listing endpoint exists yet, so the Home page offers strip degrades gracefully.
+    return []
   },
 
   /**

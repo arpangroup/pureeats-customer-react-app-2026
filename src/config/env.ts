@@ -20,8 +20,12 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localho
 
 export const MOCK_DELAY_MS = Number(import.meta.env.VITE_MOCK_DELAY_MS ?? 350)
 
-/** Google Maps JavaScript API key (Maps JavaScript API + Places API + Geocoding API enabled, billing on). Add it to a gitignored .env.local — never commit a real key. Maps gracefully degrade to a "map unavailable" message when this is empty. */
+/** Google Maps JavaScript API key (Maps JavaScript API + Places API + Geocoding API enabled, billing on). Add it to a gitignored .env.local — never commit a real key. When empty, the address picker and order-tracking map fall back to a free OpenStreetMap view instead. */
 export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
+
+/** Payee VPA the UPI checkout intent pays into — set this to your own UPI ID to actually receive test payments. Defaults to a placeholder so the "open my UPI app" flow still works for local dev. */
+export const UPI_PAYEE_VPA = import.meta.env.VITE_UPI_PAYEE_VPA || 'pureeats@upi'
+export const UPI_PAYEE_NAME = import.meta.env.VITE_UPI_PAYEE_NAME || 'PureEats'
 
 export const AUTH_TOKEN_STORAGE_KEY = 'pureeats.auth.token'
 export const AUTH_USER_STORAGE_KEY = 'pureeats.auth.user'
