@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { Banknote, CreditCard, Wallet } from 'lucide-react'
+import { Banknote, CheckCircle2, Smartphone, Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/ui/Feedback'
 import { classNames, formatCurrency } from '@/lib/format'
@@ -12,12 +12,13 @@ import { useAsync } from '@/hooks/useAsync'
 import { restaurantService } from '@/services/restaurantService'
 import { orderService } from '@/services/orderService'
 import { walletService } from '@/services/walletService'
+import { buildUpiIntentUrl, isMobileDevice } from '@/lib/upi'
 import type { PaymentMode } from '@/types/entities'
 
 const PAYMENT_OPTIONS: { mode: PaymentMode; label: string; icon: typeof Banknote; description: string }[] = [
   { mode: 'COD', label: 'Cash on Delivery', icon: Banknote, description: 'Pay when your order arrives' },
   { mode: 'WALLET', label: 'PureEats Wallet', icon: Wallet, description: 'Pay using your wallet balance' },
-  { mode: 'ONLINE', label: 'UPI / Card', icon: CreditCard, description: 'Pay securely online' },
+  { mode: 'UPI', label: 'UPI', icon: Smartphone, description: 'Pay via GPay, PhonePe, Paytm & more' },
 ]
 
 /** Combines the two separate Cart-page notes into the single orderComment field the backend accepts. */
@@ -36,6 +37,12 @@ export default function CheckoutPage() {
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('COD')
   const [placing, setPlacing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [upiAwaitingConfirmation, setUpiAwaitingConfirmation] = useState(false)
+
+  function selectPaymentMode(mode: PaymentMode) {
+    setPaymentMode(mode)
+    setUpiAwaitingConfirmation(false)
+  }
 
   const { data: restaurant } = useAsync(() => (cart.restaurantId ? restaurantService.get(cart.restaurantId) : Promise.resolve(undefined)), [cart.restaurantId])
   const { data: walletBalance } = useAsync(() => (user ? walletService.balance(user.id) : Promise.resolve(0)), [user?.id])
@@ -76,6 +83,19 @@ export default function CheckoutPage() {
 
   const pricing = estimateOrderPricing(cart.subtotal, restaurant, cart.deliveryType, cart.coupon, cart.tipAmount)
   const walletInsufficient = paymentMode === 'WALLET' && (walletBalance ?? 0) < pricing.payable
+  const upiOnMobile = paymentMode === 'UPI' && isMobileDevice()
+
+  /** No payment gateway backs this — same trust model as Cash on Delivery. Opening the UPI app is
+   * real (a genuine upi://pay intent), but "did they actually pay" is the user's own confirmation. */
+  function handleOpenUpiApp() {
+    const url = buildUpiIntentUrl({
+      amountInRupees: pricing.payable,
+      transactionRef: `PE${Date.now()}`,
+      note: `PureEats order${restaurant?.name ? ` · ${restaurant.name}` : ''}`,
+    })
+    window.location.href = url
+    setUpiAwaitingConfirmation(true)
+  }
 
   async function handlePlaceOrder() {
     if (!user || !cart.restaurantId) return
@@ -119,7 +139,7 @@ export default function CheckoutPage() {
             {PAYMENT_OPTIONS.map(({ mode, label, icon: Icon, description }) => (
               <button
                 key={mode}
-                onClick={() => setPaymentMode(mode)}
+                onClick={() => selectPaymentMode(mode)}
                 className={classNames(
                   'flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors',
                   paymentMode === mode ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/10' : 'border-slate-200 dark:border-slate-700',
@@ -128,19 +148,50 @@ export default function CheckoutPage() {
                 <Icon size={20} className="shrink-0 text-slate-500 dark:text-slate-400" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{mode === 'WALLET' ? `Balance: ${formatCurrency(walletBalance ?? 0)}` : description}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {mode === 'WALLET' ? `Balance: ${formatCurrency(walletBalance ?? 0)}` : description}
+                  </p>
                 </div>
               </button>
             ))}
           </div>
           {walletInsufficient && <p className="mt-2 text-xs text-rose-500">Insufficient wallet balance for this order.</p>}
+          {paymentMode === 'UPI' && !isMobileDevice() && (
+            <p className="mt-2 text-xs text-slate-400">Open checkout on your phone to pay directly from a UPI app — on desktop, order confirmation still goes through.</p>
+          )}
         </div>
 
         {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{error}</p>}
 
-        <button className="btn-primary mt-4 w-full" disabled={placing || walletInsufficient} onClick={handlePlaceOrder}>
-          {placing ? 'Placing order…' : `Place order · ${formatCurrency(pricing.payable)}`}
-        </button>
+        {upiAwaitingConfirmation ? (
+          <div className="card mt-4 p-4">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-500/15">
+                <Smartphone size={18} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Complete the payment in your UPI app</p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  We opened your UPI app for {formatCurrency(pricing.payable)}. Come back here once you've paid.
+                </p>
+              </div>
+            </div>
+            <button className="btn-primary mt-4 flex w-full items-center justify-center gap-2" disabled={placing} onClick={handlePlaceOrder}>
+              <CheckCircle2 size={16} /> {placing ? 'Placing order…' : "I've completed the payment"}
+            </button>
+            <button className="btn-ghost mt-1.5 w-full text-sm" disabled={placing} onClick={() => setUpiAwaitingConfirmation(false)}>
+              I didn't pay — go back
+            </button>
+          </div>
+        ) : (
+          <button
+            className="btn-primary mt-4 w-full"
+            disabled={placing || walletInsufficient}
+            onClick={upiOnMobile ? handleOpenUpiApp : handlePlaceOrder}
+          >
+            {placing ? 'Placing order…' : upiOnMobile ? `Pay ${formatCurrency(pricing.payable)} via UPI` : `Place order · ${formatCurrency(pricing.payable)}`}
+          </button>
+        )}
       </div>
     </div>
   )
