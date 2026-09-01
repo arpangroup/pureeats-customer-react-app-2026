@@ -13,12 +13,15 @@ function hoursAgo(h: number): string {
   return new Date(Date.now() - h * 60 * 60 * 1000).toISOString()
 }
 
-function order(partial: Omit<Order, 'restaurantName' | 'restaurantImage' | 'restaurantContactNumber'> & { restaurantId: number }): Order {
+function order(partial: Omit<Order, 'restaurantName' | 'restaurantImage' | 'restaurantContactNumber' | 'deliveryPartner'> & { restaurantId: number }): Order {
   return {
     ...partial,
     restaurantName: restaurantName(partial.restaurantId),
     restaurantImage: restaurantImage(partial.restaurantId),
     restaurantContactNumber: '9811100000',
+    deliveryPartner: partial.deliveryGuyId
+      ? { id: partial.deliveryGuyId, name: partial.deliveryGuyName ?? 'Delivery partner', phone: '9900011122', photo: null, vehicleNumber: 'KA-01-AB-1234' }
+      : null,
   }
 }
 

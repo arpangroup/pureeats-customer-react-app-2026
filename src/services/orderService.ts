@@ -5,7 +5,7 @@ import { estimateOrderPricing } from '@/lib/pricing'
 import { IS_MOCK } from '@/config/env'
 import { ordersByUser } from '@/mocks/fixtures/orders'
 import { restaurants } from '@/mocks/fixtures/restaurants'
-import type { Order, OrderItem, OrderItemAddon, OrderStatus, OrderSummary, OrderTimeline, PaymentMode, OrderDeliveryType } from '@/types/entities'
+import type { Order, OrderDeliveryPartner, OrderItem, OrderItemAddon, OrderStatus, OrderSummary, OrderTimeline, PaymentMode, OrderDeliveryType } from '@/types/entities'
 
 export interface PlaceOrderInput {
   restaurantId: number
@@ -47,6 +47,7 @@ function toSummary(order: Order): OrderSummary {
     payable: order.payable,
     createdAt: order.createdAt,
     isRated: order.isRated,
+    deliveryGuyName: order.deliveryPartner?.name ?? null,
   }
 }
 
@@ -55,7 +56,7 @@ interface LiveOrderDetail {
   uniqueOrderId: string
   status: string
   customer: { name: string }
-  restaurant: { id: number; name: string; contactNumber: string }
+  restaurant: { id: number; name: string; contactNumber: string; image: string | null }
   coupon: { couponId: number | null; code: string; name: string; discountType: string; discountAmount: string } | null
   items: { id: number; itemId: number; name: string; quantity: number; price: string; addons: { addonCategoryName: string; addonName: string; addonPrice: string }[] }[]
   address: string
@@ -74,10 +75,16 @@ interface LiveOrderDetail {
   legalNextStatuses: string[]
   deliveryGuyId: number | null
   deliveryGuyName: string | null
+  deliveryPartner: { id: number; name: string; phone: string | null; photo: string | null; vehicleNumber: string | null } | null
 }
 
 function mapLiveItem(i: LiveOrderDetail['items'][number]): OrderItem {
   return { id: i.id, itemId: i.itemId, name: i.name, quantity: i.quantity, price: toNumber(i.price), addons: i.addons.map((a) => ({ addonCategoryName: a.addonCategoryName, addonName: a.addonName, addonPrice: toNumber(a.addonPrice) })) }
+}
+
+function mapLiveDeliveryPartner(d: LiveOrderDetail['deliveryPartner']): OrderDeliveryPartner | null {
+  if (!d) return null
+  return { id: d.id, name: d.name, phone: d.phone, photo: d.photo, vehicleNumber: d.vehicleNumber }
 }
 
 function mapLiveOrder(d: LiveOrderDetail): Order {
@@ -87,7 +94,7 @@ function mapLiveOrder(d: LiveOrderDetail): Order {
     status: d.status as OrderStatus,
     restaurantId: d.restaurant.id,
     restaurantName: d.restaurant.name,
-    restaurantImage: '',
+    restaurantImage: d.restaurant.image ?? '',
     restaurantContactNumber: d.restaurant.contactNumber,
     address: d.address,
     items: d.items.map(mapLiveItem),
@@ -108,6 +115,7 @@ function mapLiveOrder(d: LiveOrderDetail): Order {
     pricingBreakdown: null,
     deliveryGuyId: d.deliveryGuyId,
     deliveryGuyName: d.deliveryGuyName,
+    deliveryPartner: mapLiveDeliveryPartner(d.deliveryPartner),
     isRated: false,
   }
 }
@@ -147,6 +155,7 @@ export const orderService = {
         pricingBreakdown: null,
         deliveryGuyId: null,
         deliveryGuyName: null,
+        deliveryPartner: null,
         isRated: false,
       }
       ordersByUser[userId] = [order, ...(ordersByUser[userId] ?? [])]
@@ -173,8 +182,8 @@ export const orderService = {
       await mockDelay()
       return (ordersByUser[userId] ?? []).map(toSummary).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     }
-    const { data } = await apiClient.get<{ data: { id: number; uniqueOrderId: string; status: string; restaurantId: number; restaurantName?: string; total: string; createdAt: string }[] }>('/orders')
-    return data.data.map((o) => ({ id: o.id, uniqueOrderId: o.uniqueOrderId, status: o.status as OrderStatus, restaurantId: o.restaurantId, restaurantName: o.restaurantName ?? 'Restaurant', restaurantImage: '', total: toNumber(o.total), payable: toNumber(o.total), createdAt: o.createdAt, isRated: false }))
+    const { data } = await apiClient.get<{ data: { id: number; uniqueOrderId: string; status: string; restaurantId: number; restaurantName?: string; restaurantImage?: string | null; total: string; createdAt: string; deliveryGuyName?: string | null }[] }>('/orders')
+    return data.data.map((o) => ({ id: o.id, uniqueOrderId: o.uniqueOrderId, status: o.status as OrderStatus, restaurantId: o.restaurantId, restaurantName: o.restaurantName ?? 'Restaurant', restaurantImage: o.restaurantImage ?? '', total: toNumber(o.total), payable: toNumber(o.total), createdAt: o.createdAt, isRated: false, deliveryGuyName: o.deliveryGuyName ?? null }))
   },
 
   async get(userId: number, id: number): Promise<Order | undefined> {

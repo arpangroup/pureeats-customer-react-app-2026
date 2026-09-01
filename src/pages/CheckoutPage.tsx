@@ -12,7 +12,8 @@ import { useAsync } from '@/hooks/useAsync'
 import { restaurantService } from '@/services/restaurantService'
 import { orderService } from '@/services/orderService'
 import { walletService } from '@/services/walletService'
-import { buildUpiIntentUrl, isMobileDevice } from '@/lib/upi'
+import { buildUpiLaunchUrl, isMobileDevice } from '@/lib/upi'
+import { useAppConfig } from '@/context/AppConfigContext'
 import type { PaymentMode } from '@/types/entities'
 
 const PAYMENT_OPTIONS: { mode: PaymentMode; label: string; icon: typeof Banknote; description: string }[] = [
@@ -38,14 +39,21 @@ export default function CheckoutPage() {
   const [placing, setPlacing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [upiAwaitingConfirmation, setUpiAwaitingConfirmation] = useState(false)
+  const [upiLaunchFailed, setUpiLaunchFailed] = useState(false)
 
   function selectPaymentMode(mode: PaymentMode) {
     setPaymentMode(mode)
     setUpiAwaitingConfirmation(false)
+    setUpiLaunchFailed(false)
   }
 
   const { data: restaurant } = useAsync(() => (cart.restaurantId ? restaurantService.get(cart.restaurantId) : Promise.resolve(undefined)), [cart.restaurantId])
   const { data: walletBalance } = useAsync(() => (user ? walletService.balance(user.id) : Promise.resolve(0)), [user?.id])
+  const { enabledPaymentMethods } = useAppConfig()
+  // Empty list means the admin hasn't restricted anything — show every option, same as before this existed.
+  const paymentOptions = enabledPaymentMethods.length === 0
+    ? PAYMENT_OPTIONS
+    : PAYMENT_OPTIONS.filter((o) => enabledPaymentMethods.includes(o.mode))
 
   const needsAddress = cart.deliveryType === 'DELIVERY'
 
@@ -88,13 +96,19 @@ export default function CheckoutPage() {
   /** No payment gateway backs this — same trust model as Cash on Delivery. Opening the UPI app is
    * real (a genuine upi://pay intent), but "did they actually pay" is the user's own confirmation. */
   function handleOpenUpiApp() {
-    const url = buildUpiIntentUrl({
+    const url = buildUpiLaunchUrl({
       amountInRupees: pricing.payable,
       transactionRef: `PE${Date.now()}`,
       note: `PureEats order${restaurant?.name ? ` · ${restaurant.name}` : ''}`,
     })
+    setUpiLaunchFailed(false)
     window.location.href = url
     setUpiAwaitingConfirmation(true)
+    // If a UPI app actually opened, the tab loses visibility almost immediately (backgrounded in
+    // favor of the app); if we're still visible after a beat, nothing claimed the intent.
+    window.setTimeout(() => {
+      if (document.visibilityState === 'visible') setUpiLaunchFailed(true)
+    }, 1500)
   }
 
   async function handlePlaceOrder() {
@@ -136,7 +150,7 @@ export default function CheckoutPage() {
         <div className="card mt-4 p-4">
           <p className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Payment method</p>
           <div className="space-y-2">
-            {PAYMENT_OPTIONS.map(({ mode, label, icon: Icon, description }) => (
+            {paymentOptions.map(({ mode, label, icon: Icon, description }) => (
               <button
                 key={mode}
                 onClick={() => selectPaymentMode(mode)}
@@ -176,11 +190,19 @@ export default function CheckoutPage() {
                 </p>
               </div>
             </div>
-            <button className="btn-primary mt-4 flex w-full items-center justify-center gap-2" disabled={placing} onClick={handlePlaceOrder}>
+            {upiLaunchFailed && (
+              <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+                Didn't open a UPI app? Make sure GPay, PhonePe or another UPI app is installed, then try again.
+              </p>
+            )}
+            <button className="btn-secondary mt-3 flex w-full items-center justify-center gap-2" disabled={placing} onClick={handleOpenUpiApp}>
+              <Smartphone size={16} /> Open UPI app again
+            </button>
+            <button className="btn-primary mt-1.5 flex w-full items-center justify-center gap-2" disabled={placing} onClick={handlePlaceOrder}>
               <CheckCircle2 size={16} /> {placing ? 'Placing order…' : "I've completed the payment"}
             </button>
-            <button className="btn-ghost mt-1.5 w-full text-sm" disabled={placing} onClick={() => setUpiAwaitingConfirmation(false)}>
-              I didn't pay — go back
+            <button className="btn-ghost mt-1.5 w-full text-sm" disabled={placing} onClick={() => { setUpiAwaitingConfirmation(false); setUpiLaunchFailed(false) }}>
+              I didn't pay — choose another payment method
             </button>
           </div>
         ) : (

@@ -3,7 +3,7 @@ import { ShoppingBag } from 'lucide-react'
 import { useCart } from '@/hooks/useCart'
 import { formatCurrency } from '@/lib/format'
 
-const HIDDEN_ON = ['/cart', '/checkout', '/login', '/register', '/verify']
+const HIDDEN_ON = ['/cart', '/checkout', '/login', '/register', '/verify', '/profile/addresses']
 
 /** Persistent "view cart" bar — visible from any browse page whenever the cart isn't empty, hidden on the cart/checkout screens themselves. */
 export function CartFloatingBar() {

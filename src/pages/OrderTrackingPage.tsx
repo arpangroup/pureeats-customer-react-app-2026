@@ -2,10 +2,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Bike, KeyRound, MapPin, Phone, Star } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { LoadingBlock, EmptyState } from '@/components/ui/Feedback'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { OrderStatusTimeline } from '@/components/orders/OrderStatusTimeline'
 import { OrderTrackingMap } from '@/components/maps/OrderTrackingMap'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { useAsync } from '@/hooks/useAsync'
+import { useOrderPolling } from '@/hooks/useOrderPolling'
 import { useAuth } from '@/hooks/useAuth'
 import { useActiveLocation } from '@/hooks/useLocation'
 import { orderService } from '@/services/orderService'
@@ -21,13 +23,15 @@ export default function OrderTrackingPage() {
   const { user, isAuthenticated } = useAuth()
   const { activeAddress } = useActiveLocation()
   const navigate = useNavigate()
-  const { data: order, isLoading, reload } = useAsync(() => (user ? orderService.get(user.id, orderId) : Promise.resolve(undefined)), [user?.id, orderId])
-  const { data: timeline } = useAsync(() => (user ? orderService.timeline(user.id, orderId) : Promise.resolve(undefined)), [user?.id, orderId])
+  const { data: order, isLoading, reload } = useOrderPolling(() => (user ? orderService.get(user.id, orderId) : Promise.resolve(undefined)), [user?.id, orderId], 8000)
+  const { data: timeline } = useAsync(() => (user ? orderService.timeline(user.id, orderId) : Promise.resolve(undefined)), [user?.id, orderId, order?.status])
   const { data: restaurant } = useAsync(() => (order ? restaurantService.get(order.restaurantId) : Promise.resolve(undefined)), [order?.restaurantId])
   const [cancelling, setCancelling] = useState(false)
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
 
   async function handleCancel() {
-    if (!user || !window.confirm('Cancel this order?')) return
+    if (!user) return
+    setConfirmCancelOpen(false)
     setCancelling(true)
     try {
       await orderService.cancel(user.id, orderId)
@@ -55,6 +59,7 @@ export default function OrderTrackingPage() {
 
   const canCancel = order.legalNextStatuses.includes('CANCELLED')
   const canRate = order.status === 'DELIVERED' && !order.isRated
+  const restaurantAccepted = order.status !== 'PLACED' && order.status !== 'CANCELLED'
 
   return (
     <div>
@@ -63,15 +68,21 @@ export default function OrderTrackingPage() {
         <div className="card p-4">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
-              {/* The live order endpoint doesn't return a restaurant image (OrderRestaurantSummary
-                  only carries id/name/contactNumber) — fall back to the restaurant fetched
-                  separately for the map below, which always has one. */}
               <img src={order.restaurantImage || restaurant?.image} alt={order.restaurantName} className="h-full w-full object-cover" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate font-semibold text-slate-800 dark:text-slate-100">{order.restaurantName}</p>
               <p className="text-xs text-slate-400">{order.items.reduce((n, i) => n + i.quantity, 0)} items · {formatCurrency(order.payable)}</p>
             </div>
+            {restaurantAccepted && order.restaurantContactNumber && (
+              <a
+                href={`tel:${order.restaurantContactNumber}`}
+                className="shrink-0 rounded-full bg-slate-100 p-2 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                aria-label="Call restaurant"
+              >
+                <Phone size={16} />
+              </a>
+            )}
           </div>
         </div>
 
@@ -91,18 +102,26 @@ export default function OrderTrackingPage() {
           </div>
         )}
 
-        {order.deliveryGuyName && (
+        {order.deliveryPartner && (
           <div className="card mt-4 flex items-center gap-3 p-4">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-500/15">
-              <Bike size={18} />
-            </span>
+            {order.deliveryPartner.photo ? (
+              <img src={order.deliveryPartner.photo} alt={order.deliveryPartner.name} className="h-10 w-10 shrink-0 rounded-full object-cover" />
+            ) : (
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-500/15">
+                <Bike size={18} />
+              </span>
+            )}
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{order.deliveryGuyName}</p>
-              <p className="text-xs text-slate-400">Your delivery partner</p>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{order.deliveryPartner.name}</p>
+              <p className="text-xs text-slate-400">
+                Your delivery partner{order.deliveryPartner.vehicleNumber ? ` · ${order.deliveryPartner.vehicleNumber}` : ''}
+              </p>
             </div>
-            <a href="tel:" className="rounded-full bg-slate-100 p-2 text-slate-600 dark:bg-slate-800 dark:text-slate-300" aria-label="Call rider">
-              <Phone size={16} />
-            </a>
+            {order.deliveryPartner.phone && (
+              <a href={`tel:${order.deliveryPartner.phone}`} className="rounded-full bg-slate-100 p-2 text-slate-600 dark:bg-slate-800 dark:text-slate-300" aria-label="Call rider">
+                <Phone size={16} />
+              </a>
+            )}
           </div>
         )}
 
@@ -150,12 +169,21 @@ export default function OrderTrackingPage() {
             </button>
           )}
           {canCancel && (
-            <button className="btn-secondary w-full text-rose-600" disabled={cancelling} onClick={handleCancel}>
+            <button className="btn-secondary w-full text-rose-600" disabled={cancelling} onClick={() => setConfirmCancelOpen(true)}>
               {cancelling ? 'Cancelling…' : 'Cancel order'}
             </button>
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmCancelOpen}
+        title="Cancel this order?"
+        description="This can't be undone. Any amount already paid will be refunded to your wallet."
+        confirmLabel="Cancel order"
+        onCancel={() => setConfirmCancelOpen(false)}
+        onConfirm={handleCancel}
+      />
     </div>
   )
 }

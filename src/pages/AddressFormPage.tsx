@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { LocateFixed } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Field, TextInput } from '@/components/ui/FormControls'
@@ -20,6 +20,8 @@ export default function AddressFormPage() {
   const addressId = id ? Number(id) : null
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = (location.state as { from?: string } | null)?.from
   const { setActiveAddress } = useActiveLocation()
   const { data: existingList, isLoading } = useAsync(() => (user && addressId ? addressService.list(user.id) : Promise.resolve(null)), [user?.id, addressId])
   const existing = existingList?.find((a) => a.id === addressId)
@@ -80,7 +82,7 @@ export default function AddressFormPage() {
       }
       const saved = addressId ? await addressService.update(user.id, addressId, payload) : await addressService.create(user.id, payload)
       setActiveAddress(saved)
-      navigate('/profile/addresses', { replace: true })
+      navigate(returnTo ?? '/profile/addresses', { replace: true })
     } catch (err) {
       setError((err as { message?: string })?.message ?? 'Could not save this address')
     } finally {

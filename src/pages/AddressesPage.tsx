@@ -1,7 +1,9 @@
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Home, MapPin, Pencil, Plus, Star, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState, Skeleton } from '@/components/ui/Feedback'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { useAsync } from '@/hooks/useAsync'
 import { useAuth } from '@/hooks/useAuth'
@@ -13,12 +15,21 @@ import type { Address } from '@/types/entities'
 export default function AddressesPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const { activeAddress, setActiveAddress } = useActiveLocation()
   const { data: addresses, isLoading, reload } = useAsync(() => (user ? addressService.list(user.id) : Promise.resolve([])), [user?.id])
+  const [pendingDelete, setPendingDelete] = useState<Address | null>(null)
+  const returnTo = (location.state as { from?: string } | null)?.from
 
-  async function handleDelete(address: Address) {
-    if (!window.confirm(`Delete "${address.tag ?? address.house}"?`)) return
-    await addressService.remove(address.id)
+  /** navigate()'s `to` argument has no `state` field (that's a separate NavigateOptions arg) — bundling both here keeps call sites from having to remember that. */
+  function goToAddressForm(path: string) {
+    navigate(path, returnTo ? { state: { from: returnTo } } : undefined)
+  }
+
+  async function handleDelete() {
+    if (!pendingDelete) return
+    await addressService.remove(pendingDelete.id)
+    setPendingDelete(null)
     reload()
   }
 
@@ -30,10 +41,10 @@ export default function AddressesPage() {
 
   return (
     <div>
-      <PageHeader title="Your addresses" actions={<button onClick={() => navigate('/profile/addresses/new')} className="text-sm font-semibold text-brand-600">Add new</button>} />
+      <PageHeader title="Your addresses" actions={<button onClick={() => goToAddressForm('/profile/addresses/new')} className="text-sm font-semibold text-brand-600">Add new</button>} />
       <div className="mx-auto max-w-lg px-4 py-4">
         <RequireAuth title="Sign in to manage addresses" description="Save delivery addresses and pick them on a map once you're signed in.">
-          <button onClick={() => navigate('/profile/addresses/new')} className="hidden w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-300 py-3 text-sm font-semibold text-brand-600 hover:bg-brand-50 dark:border-brand-500/40 dark:hover:bg-brand-500/10 md:flex">
+          <button onClick={() => goToAddressForm('/profile/addresses/new')} className="hidden w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-300 py-3 text-sm font-semibold text-brand-600 hover:bg-brand-50 dark:border-brand-500/40 dark:hover:bg-brand-500/10 md:flex">
             <Plus size={16} /> Add new address
           </button>
 
@@ -65,7 +76,7 @@ export default function AddressesPage() {
                     </div>
                   </button>
                   <div className="mt-3 flex items-center gap-4 pl-12 text-xs font-semibold">
-                    <button onClick={() => navigate(`/profile/addresses/${address.id}/edit`)} className="flex items-center gap-1 text-slate-500 hover:text-slate-700 dark:text-slate-400">
+                    <button onClick={() => goToAddressForm(`/profile/addresses/${address.id}/edit`)} className="flex items-center gap-1 text-slate-500 hover:text-slate-700 dark:text-slate-400">
                       <Pencil size={12} /> Edit
                     </button>
                     {!address.isDefault && (
@@ -73,7 +84,7 @@ export default function AddressesPage() {
                         Set as default
                       </button>
                     )}
-                    <button onClick={() => handleDelete(address)} className="flex items-center gap-1 text-rose-500 hover:text-rose-600">
+                    <button onClick={() => setPendingDelete(address)} className="flex items-center gap-1 text-rose-500 hover:text-rose-600">
                       <Trash2 size={12} /> Delete
                     </button>
                   </div>
@@ -83,6 +94,15 @@ export default function AddressesPage() {
           )}
         </RequireAuth>
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Delete this address?"
+        description={pendingDelete ? `"${pendingDelete.tag ?? pendingDelete.house}" will be removed from your saved addresses.` : undefined}
+        confirmLabel="Delete"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }
