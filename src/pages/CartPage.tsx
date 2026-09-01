@@ -201,6 +201,15 @@ export default function CartPage() {
           </div>
         </div>
 
+        {/* The "Proceed to pay" button below is `fixed` on mobile (always visible without
+            scrolling), occupying a constant band roughly 4.5rem-7.5rem above the viewport bottom.
+            Trailing padding on the page can't protect content ABOVE it in the DOM (padding after
+            the last element doesn't push earlier siblings down) — this spacer, placed before
+            everything that could otherwise land in that band (address card, nudge, bill details,
+            policy text), is what actually guarantees none of it renders underneath the button,
+            regardless of how short the cart is or which of those sections are present. */}
+        <div className="h-28 md:hidden" aria-hidden="true" />
+
         {needsAddress && isAuthenticated && (
           <button onClick={() => navigate('/profile/addresses', { state: { from: '/cart' } })} className="card mt-4 flex w-full items-center gap-3 p-4 text-left">
             <MapPin size={18} className="shrink-0 text-brand-600" />
@@ -210,6 +219,12 @@ export default function CartPage() {
             </div>
             <span className="shrink-0 text-xs font-semibold text-brand-600">Change</span>
           </button>
+        )}
+
+        {restaurant && restaurantCoupons && restaurantCoupons.length > 0 && (
+          <div className="mt-4">
+            <FreebieNudge coupons={restaurantCoupons} subtotal={cart.subtotal} variant="inline" />
+          </div>
         )}
 
         <div className="card mt-4 p-4">
@@ -239,7 +254,7 @@ export default function CartPage() {
         <button
           onClick={handleProceed}
           disabled={isAuthenticated && blockedFromCheckout}
-          className="btn-primary sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] mt-4 w-full disabled:cursor-not-allowed disabled:opacity-50 md:static"
+          className="btn-primary fixed inset-x-3 z-20 mx-auto max-w-[calc(32rem-1.5rem)] bottom-[calc(4.5rem+env(safe-area-inset-bottom))] disabled:cursor-not-allowed disabled:opacity-50 md:static md:z-auto md:mx-0 md:mt-4 md:max-w-none md:w-full"
         >
           {isAuthenticated && needsAddress && !activeAddress
             ? 'Select an address to continue'
@@ -248,10 +263,6 @@ export default function CartPage() {
               : `Proceed to pay · ${formatCurrency(pricing.payable)}`}
         </button>
       </div>
-
-      {restaurant && restaurantCoupons && restaurantCoupons.length > 0 && (
-        <FreebieNudge coupons={restaurantCoupons} subtotal={cart.subtotal} />
-      )}
 
       <LoginBottomSheet open={loginSheetOpen} onClose={() => setLoginSheetOpen(false)} from="/checkout" />
     </div>

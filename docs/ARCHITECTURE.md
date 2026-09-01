@@ -1,6 +1,6 @@
 # Architecture & state flow
 
-How this app is put together and how state propagates through it — written for "where does X live and what updates it" questions, not as a tutorial. See the root `README.md` for scripts/setup, and the sibling `pureeats-backend-2026/PROMPT_CONTEXT.md` for the backend side of anything mentioned here.
+How this app is put together and how state propagates through it — written for "where does X live and what updates it" questions, not as a tutorial. See the root `README.md` for scripts/setup, [UI_SCREENSHOTS.md](UI_SCREENSHOTS.md) for what these screens actually look like, and the sibling `pureeats-backend-2026/PROMPT_CONTEXT.md` for the backend side of anything mentioned here.
 
 ## Provider tree
 

@@ -27,4 +27,4 @@ See `src/config/env.ts`. `VITE_DATA_SOURCE=mock` (default, `.env.development`) u
 - `src/components/layout` — `AppShell` (bottom tabs on mobile, top nav on desktop), `Sheet` (bottom sheet on mobile / modal on desktop)
 - `src/pages` — one file per route, see `src/routes/AppRoutes.tsx`
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the provider tree, where each piece of state actually lives, and how the cart-validation and order-tracking-polling flows work end to end.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the provider tree, where each piece of state actually lives, and how the cart-validation and order-tracking-polling flows work end to end. See [docs/UI_SCREENSHOTS.md](docs/UI_SCREENSHOTS.md) for a screenshot-by-screenshot tour of every screen, Figma-board style.
