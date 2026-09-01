@@ -1,10 +1,18 @@
+import { readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const appVersion = JSON.parse(readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf-8')).version as string
+
 // https://vitejs.dev/config/
 export default defineConfig({
+  define: {
+    // The app's own build version, compared against the backend's /app-config on boot to decide
+    // whether to nudge (SOFT) or block (HARD) until the user updates — see AppConfigContext.
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [
     react(),
     VitePWA({

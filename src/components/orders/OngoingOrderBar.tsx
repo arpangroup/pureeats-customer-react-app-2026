@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bike } from 'lucide-react'
 import { useAsync } from '@/hooks/useAsync'
@@ -7,12 +8,22 @@ import { orderService } from '@/services/orderService'
 import { orderStatusLabel, ACTIVE_STATUSES } from '@/lib/orderStatus'
 import { classNames } from '@/lib/format'
 
-/** Sticky bottom banner on the Home page when the user has an order in flight — offsets above the cart bar/tab bar so both can be visible at once without overlapping. */
+const POLL_INTERVAL_MS = 15000
+
+/** Sticky bottom banner on the Home page when the user has an order in flight — offsets above the cart bar/tab bar so both can be visible at once without overlapping. Polls so the status label ("Driver assigned", "John picked up your order"…) reflects the backend without a manual refresh. */
 export function OngoingOrderBar() {
   const { user } = useAuth()
   const { itemCount } = useCart()
   const navigate = useNavigate()
-  const { data: orders } = useAsync(() => (user ? orderService.listMine(user.id) : Promise.resolve([])), [user?.id])
+  const { data: orders, reload } = useAsync(() => (user ? orderService.listMine(user.id) : Promise.resolve([])), [user?.id])
+
+  useEffect(() => {
+    if (!user) return
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') reload()
+    }, POLL_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [user, reload])
 
   const activeOrder = orders?.find((o) => ACTIVE_STATUSES.includes(o.status))
   if (!activeOrder) return null
@@ -30,7 +41,7 @@ export function OngoingOrderBar() {
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{activeOrder.restaurantName}</p>
-        <p className="truncate text-xs text-slate-500 dark:text-slate-400">{orderStatusLabel(activeOrder.status)}</p>
+        <p className="truncate text-xs text-slate-500 dark:text-slate-400">{orderStatusLabel(activeOrder.status, activeOrder.deliveryGuyName)}</p>
       </div>
       <span className="shrink-0 text-sm font-bold text-brand-600">View →</span>
     </button>

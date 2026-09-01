@@ -211,6 +211,14 @@ export type OrderStatus =
   | 'SELF_PICKUP_COMPLETED'
   | 'CANCELLED'
 
+export interface OrderDeliveryPartner {
+  id: number
+  name: string
+  phone: string | null
+  photo: string | null
+  vehicleNumber: string | null
+}
+
 export interface Order {
   id: number
   uniqueOrderId: string
@@ -238,6 +246,7 @@ export interface Order {
   pricingBreakdown: PricingBreakdown | null
   deliveryGuyId: number | null
   deliveryGuyName: string | null
+  deliveryPartner: OrderDeliveryPartner | null
   isRated: boolean
 }
 
@@ -253,6 +262,18 @@ export interface OrderSummary {
   payable: number
   createdAt: string
   isRated: boolean
+  deliveryGuyName: string | null
+}
+
+export type AppUpdateSeverity = 'NONE' | 'SOFT' | 'HARD'
+
+export interface AppConfig {
+  severity: AppUpdateSeverity
+  message: string | null
+  latestVersion: string | null
+  googleMapsApiKey: string | null
+  enabledPaymentMethods: string[]
+  forceLogoutOnHardUpdate: boolean
 }
 
 export interface WalletTransaction {

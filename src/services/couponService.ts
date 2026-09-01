@@ -70,19 +70,17 @@ export const couponService = {
       const discountAmount = computeDiscount(coupon, orderAmount)
       return { couponId: coupon.id, code: coupon.code, discountAmount, payableAmount: Math.max(0, orderAmount - discountAmount), waivesDelivery: coupon.discountType === 'free_delivery' }
     }
-    const { data } = await apiClient.post<{ data: { couponId: number; code: string; discountAmount: string; payableAmount: string } }>('/coupons/preview', {
+    const { data } = await apiClient.post<{ data: { couponId: number; code: string; discountAmount: string; payableAmount: string; waivesDelivery: boolean } }>('/coupons/preview', {
       code,
       restaurantId,
       orderAmount,
     })
-    // The live preview response doesn't flag free-delivery coupons explicitly — a zero discount
-    // on an otherwise-valid coupon apply is the closest available signal until the backend adds one.
     return {
       couponId: data.data.couponId,
       code: data.data.code,
       discountAmount: toNumber(data.data.discountAmount),
       payableAmount: toNumber(data.data.payableAmount),
-      waivesDelivery: toNumber(data.data.discountAmount) === 0,
+      waivesDelivery: data.data.waivesDelivery,
     }
   },
 }

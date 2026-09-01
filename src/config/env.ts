@@ -27,6 +27,9 @@ export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '
 export const UPI_PAYEE_VPA = import.meta.env.VITE_UPI_PAYEE_VPA || 'pureeats@upi'
 export const UPI_PAYEE_NAME = import.meta.env.VITE_UPI_PAYEE_NAME || 'PureEats'
 
+/** This build's own version (from package.json, injected by vite.config.ts) — sent to /app-config so the backend can decide whether it's current. */
+export const APP_VERSION = __APP_VERSION__
+
 export const AUTH_TOKEN_STORAGE_KEY = 'pureeats.auth.token'
 export const AUTH_USER_STORAGE_KEY = 'pureeats.auth.user'
 export const AUTH_REFRESH_TOKEN_STORAGE_KEY = 'pureeats.auth.refreshToken'
