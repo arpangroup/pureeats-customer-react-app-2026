@@ -195,6 +195,21 @@ export const orderService = {
     return mapLiveOrder(data.data)
   },
 
+  /**
+   * The cheap poll target for order tracking — status + last-updated only, none of the
+   * customer/restaurant/coupon/items/rider joins `get()` costs on the backend. A polling client
+   * should call this on every tick and only fall back to `get()` when the snapshot actually changed.
+   */
+  async getStatus(userId: number, id: number): Promise<{ status: OrderStatus; updatedAt: string } | undefined> {
+    if (IS_MOCK) {
+      await mockDelay(80)
+      const order = Object.values(ordersByUser).flat().find((o) => o.id === id)
+      return order ? { status: order.status, updatedAt: order.createdAt } : undefined
+    }
+    const { data } = await apiClient.get<{ data: { status: string; updatedAt: string } }>(`/orders/${id}/status`)
+    return { status: data.data.status as OrderStatus, updatedAt: data.data.updatedAt }
+  },
+
   async cancel(userId: number, id: number): Promise<void> {
     if (IS_MOCK) {
       await mockDelay()

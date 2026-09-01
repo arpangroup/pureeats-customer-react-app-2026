@@ -36,6 +36,13 @@ export default defineConfig({
       workbox: {
         // App-shell only — API responses are never cached so mock/live data always stays fresh.
         globPatterns: ['**/*.{js,css,html,svg,ico}'],
+        // This is a client-side-routed SPA — /profile, /orders/42, etc. aren't real files, only
+        // index.html is. Without this, a hard refresh or direct URL load on any route past "/" is a
+        // real navigation request the service worker just passes through to the network; if the
+        // host has no server-side rewrite for unmatched paths (see docs/DEPLOYMENT.md), that 404s
+        // before React ever loads. This makes the service worker itself serve the cached shell for
+        // every navigation once it's installed, independent of what the host does.
+        navigateFallback: '/index.html',
       },
     }),
   ],
