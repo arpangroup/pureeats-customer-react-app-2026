@@ -7,7 +7,7 @@ import { OrderStatusTimeline } from '@/components/orders/OrderStatusTimeline'
 import { OrderTrackingMap } from '@/components/maps/OrderTrackingMap'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { useAsync } from '@/hooks/useAsync'
-import { useOrderPolling } from '@/hooks/useOrderPolling'
+import { useOrderTracking } from '@/hooks/useOrderTracking'
 import { useAuth } from '@/hooks/useAuth'
 import { useActiveLocation } from '@/hooks/useLocation'
 import { orderService } from '@/services/orderService'
@@ -23,7 +23,12 @@ export default function OrderTrackingPage() {
   const { user, isAuthenticated } = useAuth()
   const { activeAddress } = useActiveLocation()
   const navigate = useNavigate()
-  const { data: order, isLoading, reload } = useOrderPolling(() => (user ? orderService.get(user.id, orderId) : Promise.resolve(undefined)), [user?.id, orderId], 8000)
+  const { data: order, isLoading, reload } = useOrderTracking(
+    () => (user ? orderService.get(user.id, orderId) : Promise.resolve(undefined)),
+    () => (user ? orderService.getStatus(user.id, orderId) : Promise.resolve(undefined)),
+    [user?.id, orderId],
+    8000,
+  )
   const { data: timeline } = useAsync(() => (user ? orderService.timeline(user.id, orderId) : Promise.resolve(undefined)), [user?.id, orderId, order?.status])
   const { data: restaurant } = useAsync(() => (order ? restaurantService.get(order.restaurantId) : Promise.resolve(undefined)), [order?.restaurantId])
   const [cancelling, setCancelling] = useState(false)
