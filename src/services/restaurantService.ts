@@ -56,13 +56,16 @@ interface LiveRestaurantSummary {
   isAccepted: boolean
   minOrderPrice: string
   deliveryCharges: string
+  // Carried on the summary too (not just the detail response) so card grids — Home, Search,
+  // category listing, Top Picks — can gray out a closed restaurant without a per-card detail fetch.
+  openingTime: string
+  closingTime: string
+  isFeatured: boolean
 }
 
 interface LiveRestaurantDetail extends LiveRestaurantSummary {
   description: string
   contactNumber: string
-  openingTime: string
-  closingTime: string
   address: string
   pincode: string
   landmark: string
@@ -72,7 +75,6 @@ interface LiveRestaurantDetail extends LiveRestaurantSummary {
   deliveryRadius: string
   deliveryType: RestaurantDeliveryType
   isSchedulable: boolean
-  isFeatured: boolean
   isAcceptCod: boolean
 }
 
@@ -104,23 +106,39 @@ function mapLive(d: LiveRestaurantSummary | LiveRestaurantDetail): Restaurant {
     isSchedulable: detail.isSchedulable ?? false,
     isActive: d.isActive,
     isAccepted: d.isAccepted,
-    isFeatured: detail.isFeatured ?? false,
+    isFeatured: d.isFeatured,
     isAcceptCod: detail.isAcceptCod ?? true,
-    openingTime: detail.openingTime ?? '00:00',
-    closingTime: detail.closingTime ?? '23:59',
+    openingTime: d.openingTime ?? '00:00',
+    closingTime: d.closingTime ?? '23:59',
     certificate: detail.certificate ?? null,
     categoryIds: [],
   }
 }
 
+// Module-level cache for list() — the full restaurant listing is fetched identically by HomePage,
+// SearchPage's empty-query state, and TopPicksPage (each computing their own "top picks" selection
+// client-side from it, see lib/topPicks.ts). Whichever of those mounts first pays for the request;
+// everyone else in the same session reuses that promise instead of re-fetching, so e.g. navigating
+// Home -> Search never fires a second /restaurants call. Cleared on failure so the next caller
+// retries rather than getting stuck on a rejected promise for the rest of the session.
+let listCache: Promise<Restaurant[]> | null = null
+
 export const restaurantService = {
   async list(): Promise<Restaurant[]> {
-    if (IS_MOCK) {
-      await mockDelay()
-      return restaurants.filter((r) => r.isActive && r.isAccepted)
+    if (!listCache) {
+      listCache = (async () => {
+        if (IS_MOCK) {
+          await mockDelay()
+          return restaurants.filter((r) => r.isActive && r.isAccepted)
+        }
+        const { data } = await apiClient.get<{ data: LiveRestaurantSummary[] }>('/restaurants')
+        return data.data.map(mapLive)
+      })()
+      listCache.catch(() => {
+        listCache = null
+      })
     }
-    const { data } = await apiClient.get<{ data: LiveRestaurantSummary[] }>('/restaurants')
-    return data.data.map(mapLive)
+    return listCache
   },
 
   async search(query: string): Promise<Restaurant[]> {

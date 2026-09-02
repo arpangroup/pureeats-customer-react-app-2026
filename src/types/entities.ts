@@ -267,6 +267,18 @@ export interface OrderSummary {
 
 export type AppUpdateSeverity = 'NONE' | 'SOFT' | 'HARD'
 
+export type ColumnLayout = 'ONE_COLUMN' | 'TWO_COLUMN'
+export type DeliveryInstructionMode = 'TEXT' | 'QUICK_OPTIONS'
+export type MapProvider = 'OSM' | 'GOOGLE'
+export type OrderStatusUpdateMode = 'POLL' | 'PUSH' | 'BOTH'
+
+export interface DeliveryInstructionOption {
+  key: string
+  label: string
+  /** lucide-react icon name, e.g. "DoorOpen" — mapped to a component client-side. */
+  icon: string
+}
+
 export interface AppConfig {
   severity: AppUpdateSeverity
   message: string | null
@@ -274,6 +286,19 @@ export interface AppConfig {
   googleMapsApiKey: string | null
   enabledPaymentMethods: string[]
   forceLogoutOnHardUpdate: boolean
+  /** Every field below is a remote feature flag / layout switch — always paired with a client-side default so the UI never breaks on an old or partially-configured backend. */
+  audioSearchEnabled: boolean
+  promoSliderEnabled: boolean
+  topPicksEnabled: boolean
+  recommendedItemsEnabled: boolean
+  restaurantListLayout: ColumnLayout
+  recommendedItemsLayout: ColumnLayout
+  restaurantItemsLayout: ColumnLayout
+  deliveryInstructionMode: DeliveryInstructionMode
+  deliveryInstructionOptions: DeliveryInstructionOption[]
+  mapProvider: MapProvider
+  orderStatusUpdateMode: OrderStatusUpdateMode
+  orderStatusPollIntervalMs: number
 }
 
 export interface WalletTransaction {
@@ -296,6 +321,20 @@ export interface Rating {
   tags: string[]
   raterName: string
   createdAt: string
+}
+
+export interface PromoSlide {
+  id: number
+  name: string
+  image: string
+  /** Where tapping the slide should go — an absolute/relative URL, or empty for a decorative-only slide. */
+  url: string | null
+}
+
+export interface PromoSlider {
+  id: number
+  name: string
+  slides: PromoSlide[]
 }
 
 export interface AppNotification {

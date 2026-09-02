@@ -7,12 +7,13 @@ import { OrderStatusTimeline } from '@/components/orders/OrderStatusTimeline'
 import { OrderTrackingMap } from '@/components/maps/OrderTrackingMap'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { useAsync } from '@/hooks/useAsync'
-import { useOrderTracking } from '@/hooks/useOrderTracking'
+import { useOrderStatusUpdates } from '@/hooks/useOrderStatusUpdates'
 import { useAuth } from '@/hooks/useAuth'
 import { useActiveLocation } from '@/hooks/useLocation'
 import { orderService } from '@/services/orderService'
 import { restaurantService } from '@/services/restaurantService'
-import { formatCurrency } from '@/lib/format'
+import { orderStatusLabel, orderStatusTone } from '@/lib/orderStatus'
+import { formatCurrency, classNames } from '@/lib/format'
 import { useState } from 'react'
 
 const TRACKABLE_STATUSES = ['PLACED', 'RESTAURANT_ACCEPTED', 'READY_FOR_PICKUP', 'RIDER_ASSIGNED', 'PICKED_UP']
@@ -23,11 +24,10 @@ export default function OrderTrackingPage() {
   const { user, isAuthenticated } = useAuth()
   const { activeAddress } = useActiveLocation()
   const navigate = useNavigate()
-  const { data: order, isLoading, reload } = useOrderTracking(
+  const { data: order, isLoading, reload } = useOrderStatusUpdates(
     () => (user ? orderService.get(user.id, orderId) : Promise.resolve(undefined)),
     () => (user ? orderService.getStatus(user.id, orderId) : Promise.resolve(undefined)),
     [user?.id, orderId],
-    8000,
   )
   const { data: timeline } = useAsync(() => (user ? orderService.timeline(user.id, orderId) : Promise.resolve(undefined)), [user?.id, orderId, order?.status])
   const { data: restaurant } = useAsync(() => (order ? restaurantService.get(order.restaurantId) : Promise.resolve(undefined)), [order?.restaurantId])
@@ -66,10 +66,35 @@ export default function OrderTrackingPage() {
   const canRate = order.status === 'DELIVERED' && !order.isRated
   const restaurantAccepted = order.status !== 'PLACED' && order.status !== 'CANCELLED'
 
+  const showMap = TRACKABLE_STATUSES.includes(order.status) && restaurant && activeAddress
+  const statusToneClass = { brand: 'bg-brand-600', green: 'bg-emerald-600', red: 'bg-rose-600', slate: 'bg-slate-600' }[orderStatusTone(order.status)]
+
   return (
     <div>
       <PageHeader title={order.uniqueOrderId} />
-      <div className="mx-auto max-w-lg px-4 py-4">
+
+      <div className={classNames('px-4 py-4 text-center text-white', statusToneClass)}>
+        <p className="text-lg font-bold">{orderStatusLabel(order.status, order.deliveryPartner?.name)}</p>
+        <p className="mt-0.5 text-xs text-white/80">Order {order.uniqueOrderId}</p>
+      </div>
+
+      {showMap && (
+        <OrderTrackingMap
+          restaurant={{ lat: restaurant.latitude, lng: restaurant.longitude }}
+          destination={{ lat: activeAddress.latitude, lng: activeAddress.longitude }}
+          status={order.status}
+          tall
+        />
+      )}
+
+      <div
+        className={classNames(
+          'mx-auto max-w-lg px-4 pb-4',
+          showMap ? '-mt-6 rounded-t-3xl bg-white pt-4 shadow-[0_-8px_20px_-6px_rgba(15,23,42,0.15)] dark:bg-slate-950' : 'py-4',
+        )}
+      >
+        {showMap && <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200 dark:bg-slate-700" aria-hidden="true" />}
+
         <div className="card p-4">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
@@ -90,16 +115,6 @@ export default function OrderTrackingPage() {
             )}
           </div>
         </div>
-
-        {TRACKABLE_STATUSES.includes(order.status) && restaurant && activeAddress && (
-          <div className="card mt-4 overflow-hidden p-2">
-            <OrderTrackingMap
-              restaurant={{ lat: restaurant.latitude, lng: restaurant.longitude }}
-              destination={{ lat: activeAddress.latitude, lng: activeAddress.longitude }}
-              status={order.status}
-            />
-          </div>
-        )}
 
         {timeline && (
           <div className="card mt-4 p-4">
@@ -179,6 +194,10 @@ export default function OrderTrackingPage() {
             </button>
           )}
         </div>
+
+        {/* CartFloatingBar is `fixed` and floats over content rather than pushing it up — without
+            this, the last card (items/total, or the rate/cancel buttons) renders underneath it. */}
+        <div className="h-24 md:hidden" aria-hidden="true" />
       </div>
 
       <ConfirmDialog

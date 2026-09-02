@@ -95,20 +95,37 @@ export default function AddressFormPage() {
   return (
     <div>
       <PageHeader title={addressId ? 'Edit address' : 'Add address'} />
-      <div className="mx-auto max-w-lg px-4 py-4">
-        <RequireAuth title="Sign in to add an address" description="Saving an address — and picking it on the map — needs an account.">
-          <button type="button" onClick={handleUseCurrentLocation} disabled={locating} className="btn-secondary mb-4 w-full">
-            <LocateFixed size={16} /> {locating ? 'Locating…' : 'Use my current location'}
-          </button>
-
-          <div className="mb-4">
+      <RequireAuth title="Sign in to add an address" description="Saving an address — and picking it on the map — needs an account.">
+        <div className="mx-auto max-w-lg">
+          <div className="overflow-hidden sm:mt-4 sm:rounded-2xl">
             <AddressMapPicker
               latitude={coords?.latitude ?? DEFAULT_MAP_CENTER.lat}
               longitude={coords?.longitude ?? DEFAULT_MAP_CENTER.lng}
               onChange={handleMapChange}
+              tall
+              overlay={
+                <button
+                  type="button"
+                  onClick={handleUseCurrentLocation}
+                  disabled={locating}
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-600 shadow-lg disabled:opacity-60 dark:bg-slate-900"
+                  aria-label="Use my current location"
+                >
+                  <LocateFixed size={18} className={locating ? 'animate-pulse' : undefined} />
+                </button>
+              }
             />
           </div>
 
+          {address && (
+            <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Delivery location</p>
+              <p className="mt-0.5 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{address}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="mx-auto max-w-lg px-4 py-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <Field label="Flat / House / Building" required>
               <TextInput value={house} onChange={(e) => setHouse(e.target.value)} placeholder="e.g. 221B, Brigade Towers" required />
@@ -146,8 +163,8 @@ export default function AddressFormPage() {
               {saving ? 'Saving…' : 'Save address'}
             </button>
           </form>
-        </RequireAuth>
-      </div>
+        </div>
+      </RequireAuth>
     </div>
   )
 }

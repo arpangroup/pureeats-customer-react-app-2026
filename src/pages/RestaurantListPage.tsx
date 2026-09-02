@@ -5,6 +5,9 @@ import { RestaurantCard } from '@/components/restaurants/RestaurantCard'
 import { EmptyState, Skeleton } from '@/components/ui/Feedback'
 import { useAsync } from '@/hooks/useAsync'
 import { restaurantService } from '@/services/restaurantService'
+import { couponService } from '@/services/couponService'
+import { useAppConfig } from '@/context/AppConfigContext'
+import { columnLayoutClass } from '@/lib/columnLayout'
 import { classNames } from '@/lib/format'
 
 type SortKey = 'relevance' | 'rating' | 'deliveryTime'
@@ -12,7 +15,9 @@ type SortKey = 'relevance' | 'rating' | 'deliveryTime'
 export default function RestaurantListPage() {
   const { id } = useParams()
   const categoryId = Number(id)
+  const config = useAppConfig()
   const { data: categories } = useAsync(() => restaurantService.categories(), [])
+  const { data: coupons } = useAsync(() => couponService.listGlobal(), [])
   const { data: restaurants, isLoading } = useAsync(() => restaurantService.byCategory(categoryId), [categoryId])
   const [vegOnly, setVegOnly] = useState(false)
   const [ratingFilter, setRatingFilter] = useState(false)
@@ -41,7 +46,7 @@ export default function RestaurantListPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={classNames('grid gap-4', columnLayoutClass(config.restaurantListLayout))}>
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="aspect-[16/10] w-full" />
             ))}
@@ -49,9 +54,9 @@ export default function RestaurantListPage() {
         ) : filtered.length === 0 ? (
           <EmptyState title="No restaurants match" description="Try clearing a filter." />
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={classNames('grid gap-4', columnLayoutClass(config.restaurantListLayout))}>
             {filtered.map((r) => (
-              <RestaurantCard key={r.id} restaurant={r} />
+              <RestaurantCard key={r.id} restaurant={r} coupons={coupons ?? []} />
             ))}
           </div>
         )}

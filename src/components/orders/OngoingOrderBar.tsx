@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bike } from 'lucide-react'
+import { Bike, ChevronRight } from 'lucide-react'
 import { useAsync } from '@/hooks/useAsync'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
@@ -32,18 +32,25 @@ export function OngoingOrderBar() {
     <button
       onClick={() => navigate(`/orders/${activeOrder.id}`)}
       className={classNames(
-        'fixed inset-x-3 z-30 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-brand-200 bg-white px-4 py-3 text-left shadow-lg animate-fade-in dark:border-brand-500/30 dark:bg-slate-900 md:right-6 md:left-auto md:mx-0',
+        'fixed inset-x-3 z-30 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-slate-100 bg-white py-2 pl-2 pr-2.5 text-left shadow-xl shadow-slate-900/10 animate-fade-in dark:border-slate-800 dark:bg-slate-900 md:right-6 md:left-auto md:mx-0',
         itemCount > 0 ? 'bottom-[calc(9.5rem+env(safe-area-inset-bottom))] md:bottom-24' : 'bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-6',
       )}
     >
-      <span className="flex h-10 w-10 shrink-0 animate-pulse items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-500/15">
-        <Bike size={18} />
+      <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/15">
+        <Bike size={19} />
+        <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white dark:bg-slate-900">
+          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
+        </span>
       </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{activeOrder.restaurantName}</p>
-        <p className="truncate text-xs text-slate-500 dark:text-slate-400">{orderStatusLabel(activeOrder.status, activeOrder.deliveryGuyName)}</p>
-      </div>
-      <span className="shrink-0 text-sm font-bold text-brand-600">View →</span>
+      <span className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold leading-tight text-slate-800 dark:text-slate-100">{activeOrder.restaurantName}</p>
+        <p className="truncate text-[11px] font-medium leading-tight text-brand-600 dark:text-brand-400">
+          {orderStatusLabel(activeOrder.status, activeOrder.deliveryGuyName)}
+        </p>
+      </span>
+      <span className="flex shrink-0 items-center gap-0.5 rounded-xl bg-brand-600 px-3 py-2.5 text-xs font-bold text-white">
+        Track <ChevronRight size={14} />
+      </span>
     </button>
   )
 }

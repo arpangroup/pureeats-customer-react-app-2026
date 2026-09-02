@@ -44,6 +44,12 @@ export const notificationService = {
     await apiClient.patch('/notifications/read-all')
   },
 
+  /** Registers/refreshes this device's FCM token — no-op in mock mode (there's no server to notify). */
+  async registerPushToken(token: string): Promise<void> {
+    if (IS_MOCK) return
+    await apiClient.post('/notifications/push-token', { token })
+  },
+
   async remove(userId: number, id: number): Promise<void> {
     if (IS_MOCK) {
       await mockDelay(100)
