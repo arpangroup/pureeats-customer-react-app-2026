@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bike, MapPin, MessageSquare, ShieldCheck, ShoppingBag, Store } from 'lucide-react'
+import { ArrowRight, Bike, MapPin, MessageSquare, Route as RouteIcon, ShieldCheck, ShoppingBag, Store } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/ui/Feedback'
 import { Textarea } from '@/components/ui/FormControls'
 import { CartLineItem } from '@/components/cart/CartLineItem'
-import { CouponBox } from '@/components/cart/CouponBox'
+import { CouponTeaser } from '@/components/cart/CouponTeaser'
+import { InstructionChips } from '@/components/cart/InstructionChips'
 import { FreebieNudge } from '@/components/cart/FreebieNudge'
 import { LoginBottomSheet } from '@/components/auth/LoginBottomSheet'
 import { useCart } from '@/hooks/useCart'
@@ -13,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useActiveLocation } from '@/hooks/useLocation'
 import { useAsync } from '@/hooks/useAsync'
 import { useCartValidation } from '@/hooks/useCartValidation'
+import { useAppConfig } from '@/context/AppConfigContext'
 import { restaurantService } from '@/services/restaurantService'
 import { couponService } from '@/services/couponService'
 import { estimateOrderPricing, type OrderPricing } from '@/lib/pricing'
@@ -23,9 +25,10 @@ type CartTab = 'delivery' | 'tip' | 'instructions'
 
 export default function CartPage() {
   const cart = useCart()
-  const { user, isAuthenticated } = useAuth()
+  const { isAuthenticated } = useAuth()
   const { activeAddress } = useActiveLocation()
   const navigate = useNavigate()
+  const config = useAppConfig()
   const { data: restaurant } = useAsync(() => (cart.restaurantId ? restaurantService.get(cart.restaurantId) : Promise.resolve(undefined)), [cart.restaurantId])
   const { data: restaurantCoupons } = useAsync(() => (cart.restaurantId ? couponService.listForRestaurant(cart.restaurantId) : Promise.resolve([])), [cart.restaurantId])
   const { result: validation, guestQuote } = useCartValidation()
@@ -77,16 +80,11 @@ export default function CartPage() {
       ? { ...clientEstimate, deliveryCharge: guestQuote.deliveryCharge, payable: clientEstimate.total + guestQuote.deliveryCharge + cart.tipAmount }
       : clientEstimate
 
+  const distanceKm = validation?.pricing.distanceKm ?? guestQuote?.distanceKm ?? restaurant?.distanceKm ?? null
+
   const unavailableItemIds = new Map((validation?.items ?? []).filter((i) => !i.available).map((i) => [i.itemId, i.reason]))
   const restaurantUnavailable = validation ? !validation.restaurant.available : false
   const blockedFromCheckout = validation?.anyUnavailable ?? false
-
-  async function handleApplyCoupon(code: string) {
-    if (!cart.restaurantId) return
-    setCouponRemovedNotice(null)
-    const result = await couponService.apply(user?.id ?? null, code, cart.restaurantId, cart.subtotal)
-    cart.setCoupon({ code: result.code, discountAmount: result.discountAmount, waivesDelivery: result.waivesDelivery })
-  }
 
   function handleProceed() {
     if (!isAuthenticated) {
@@ -141,7 +139,7 @@ export default function CartPage() {
         </div>
 
         <div className="card mt-4 p-4">
-          <CouponBox applied={cart.coupon} onApply={handleApplyCoupon} onRemove={() => { setCouponRemovedNotice(null); cart.setCoupon(null) }} />
+          <CouponTeaser applied={cart.coupon} coupons={restaurantCoupons ?? []} subtotal={cart.subtotal} />
           {couponRemovedNotice && <p className="mt-1.5 text-xs text-rose-500">{couponRemovedNotice}</p>}
         </div>
 
@@ -192,23 +190,22 @@ export default function CartPage() {
               </div>
             )}
             {tab === 'instructions' && (
-              <Textarea
-                value={cart.deliveryInstructions}
-                onChange={(e) => cart.setDeliveryInstructions(e.target.value)}
-                placeholder="E.g. Ring the bell, leave at the door…"
-              />
+              config.deliveryInstructionMode === 'QUICK_OPTIONS' ? (
+                <InstructionChips
+                  options={config.deliveryInstructionOptions}
+                  value={cart.deliveryInstructions}
+                  onChange={cart.setDeliveryInstructions}
+                />
+              ) : (
+                <Textarea
+                  value={cart.deliveryInstructions}
+                  onChange={(e) => cart.setDeliveryInstructions(e.target.value)}
+                  placeholder="E.g. Ring the bell, leave at the door…"
+                />
+              )
             )}
           </div>
         </div>
-
-        {/* The "Proceed to pay" button below is `fixed` on mobile (always visible without
-            scrolling), occupying a constant band roughly 4.5rem-7.5rem above the viewport bottom.
-            Trailing padding on the page can't protect content ABOVE it in the DOM (padding after
-            the last element doesn't push earlier siblings down) — this spacer, placed before
-            everything that could otherwise land in that band (address card, nudge, bill details,
-            policy text), is what actually guarantees none of it renders underneath the button,
-            regardless of how short the cart is or which of those sections are present. */}
-        <div className="h-28 md:hidden" aria-hidden="true" />
 
         {needsAddress && isAuthenticated && (
           <button onClick={() => navigate('/profile/addresses', { state: { from: '/cart' } })} className="card mt-4 flex w-full items-center gap-3 p-4 text-left">
@@ -232,10 +229,13 @@ export default function CartPage() {
           <div className="space-y-1.5 text-sm">
             <Row label="Item total" value={formatCurrency(pricing.itemTotal)} />
             {pricing.discountAmount > 0 && <Row label="Discount" value={`-${formatCurrency(pricing.discountAmount)}`} tone="text-emerald-600" />}
-            <Row label="Taxes" value={formatCurrency(pricing.tax)} />
             <Row label="Restaurant charges" value={formatCurrency(pricing.restaurantCharge)} />
+            {cart.deliveryType === 'DELIVERY' && distanceKm != null && (
+              <Row label="Distance" value={`${distanceKm.toFixed(1)} km`} icon={<RouteIcon size={13} className="text-slate-400" />} />
+            )}
             <Row label="Delivery charge" value={pricing.deliveryCharge === 0 ? 'FREE' : formatCurrency(pricing.deliveryCharge)} tone={pricing.deliveryCharge === 0 ? 'text-emerald-600' : undefined} />
             {cart.tipAmount > 0 && cart.deliveryType === 'DELIVERY' && <Row label="Delivery tip" value={formatCurrency(cart.tipAmount)} />}
+            <Row label="Taxes" value={formatCurrency(pricing.tax)} />
             <div className="mt-1.5 flex items-center justify-between border-t border-slate-100 pt-1.5 text-base font-bold text-slate-800 dark:border-slate-800 dark:text-slate-100">
               <span>To pay</span>
               <span>{formatCurrency(pricing.payable)}</span>
@@ -243,7 +243,7 @@ export default function CartPage() {
           </div>
         </div>
 
-        <div className="mt-3 flex items-start gap-2 px-1 text-xs text-slate-400">
+        <div className="mt-3 mb-5 flex items-start gap-2 px-1 text-xs text-slate-400">
           <ShieldCheck size={14} className="mt-0.5 shrink-0" />
           <p>
             Free cancellation before the restaurant accepts your order. Once accepted, cancellations may be subject to a partial charge to
@@ -254,14 +254,29 @@ export default function CartPage() {
         <button
           onClick={handleProceed}
           disabled={isAuthenticated && blockedFromCheckout}
-          className="btn-primary fixed inset-x-3 z-20 mx-auto max-w-[calc(32rem-1.5rem)] bottom-[calc(4.5rem+env(safe-area-inset-bottom))] disabled:cursor-not-allowed disabled:opacity-50 md:static md:z-auto md:mx-0 md:mt-4 md:max-w-none md:w-full"
+          className="fixed inset-x-3 z-20 mx-auto flex max-w-[calc(32rem-1.5rem)] items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-brand-600 to-orange-600 px-5 py-4 text-white shadow-xl shadow-brand-900/25 transition-transform active:scale-[0.99] bottom-[calc(4.5rem+env(safe-area-inset-bottom))] disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:text-slate-500 disabled:shadow-none disabled:active:scale-100 md:static md:z-auto md:mx-0 md:mt-4 md:max-w-none md:w-full"
         >
-          {isAuthenticated && needsAddress && !activeAddress
-            ? 'Select an address to continue'
-            : isAuthenticated && blockedFromCheckout
-              ? 'Remove unavailable items to continue'
-              : `Proceed to pay · ${formatCurrency(pricing.payable)}`}
+          {isAuthenticated && needsAddress && !activeAddress ? (
+            <span className="mx-auto text-sm font-bold">Select an address to continue</span>
+          ) : isAuthenticated && blockedFromCheckout ? (
+            <span className="mx-auto text-sm font-bold">Remove unavailable items to continue</span>
+          ) : (
+            <>
+              <span className="text-sm font-semibold">Proceed to pay</span>
+              <span className="flex items-center gap-1.5 text-base font-extrabold">
+                {formatCurrency(pricing.payable)}
+                <ArrowRight size={18} />
+              </span>
+            </>
+          )}
         </button>
+
+        {/* The button above is `fixed` on mobile, occupying a constant band roughly
+            4.5rem-7.5rem above the viewport bottom — trailing padding on the page can't protect
+            content above it (padding after the last element doesn't push earlier siblings down).
+            This spacer, as the actual last item in the scrollable content, reserves that space so
+            the cancellation-policy text is never the thing sitting underneath it. */}
+        <div className="h-24 md:hidden" aria-hidden="true" />
       </div>
 
       <LoginBottomSheet open={loginSheetOpen} onClose={() => setLoginSheetOpen(false)} from="/checkout" />
@@ -283,10 +298,13 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   )
 }
 
-function Row({ label, value, tone }: { label: string; value: string; tone?: string }) {
+function Row({ label, value, tone, icon }: { label: string; value: string; tone?: string; icon?: ReactNode }) {
   return (
     <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-      <span>{label}</span>
+      <span className="flex items-center gap-1.5">
+        {icon}
+        {label}
+      </span>
       <span className={tone ?? 'text-slate-700 dark:text-slate-200'}>{value}</span>
     </div>
   )

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BadgeCheck, Clock, Heart, Info, List, MapPin, Search, ShieldCheck, Star, X } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, Clock, Heart, Info, List, MapPin, Search, Star, X } from 'lucide-react'
 import { useAsync } from '@/hooks/useAsync'
 import { restaurantService } from '@/services/restaurantService'
 import { menuService } from '@/services/menuService'
@@ -13,7 +13,10 @@ import { ItemAddonSheet } from '@/components/restaurants/ItemAddonSheet'
 import { MenuJumpSheet } from '@/components/restaurants/MenuJumpSheet'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FreebieNudge } from '@/components/cart/FreebieNudge'
+import { useAppConfig } from '@/context/AppConfigContext'
 import { getOpenStatus } from '@/lib/restaurantHours'
+import { isRestaurantOrderable } from '@/lib/restaurantAvailability'
+import { columnLayoutClass } from '@/lib/columnLayout'
 import { classNames } from '@/lib/format'
 import type { CartAddon, MenuItem } from '@/types/entities'
 
@@ -21,6 +24,7 @@ export default function RestaurantDetailPage() {
   const { id } = useParams()
   const restaurantId = Number(id)
   const navigate = useNavigate()
+  const config = useAppConfig()
   const { data: restaurant, isLoading: loadingRestaurant } = useAsync(() => restaurantService.get(restaurantId), [restaurantId])
   const { data: items, isLoading: loadingItems } = useAsync(() => menuService.itemsForRestaurant(restaurantId), [restaurantId])
   const { data: categories } = useAsync(() => menuService.itemCategoriesForRestaurant(restaurantId), [restaurantId])
@@ -97,13 +101,14 @@ export default function RestaurantDetailPage() {
   if (!restaurant) return <EmptyState title="Restaurant not found" />
 
   const openStatus = getOpenStatus(restaurant.openingTime, restaurant.closingTime)
+  const orderable = isRestaurantOrderable(restaurant)
   const showNudge = cart.restaurantId === restaurantId && cart.lines.length > 0 && coupons
 
   return (
     <div>
       <div className="relative">
         <div className="aspect-[16/9] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 sm:aspect-[21/9]">
-          <img src={restaurant.coverImage} alt={restaurant.name} className="h-full w-full object-cover" />
+          <img src={restaurant.coverImage} alt={restaurant.name} className={classNames('h-full w-full object-cover', !orderable && 'grayscale')} />
         </div>
         <button
           onClick={() => navigate(-1)}
@@ -136,8 +141,12 @@ export default function RestaurantDetailPage() {
           </span>
         </div>
         <div className="mt-2">
-          <Badge tone={openStatus.isOpen ? 'green' : 'red'}>
-            {openStatus.isOpen ? `Open now · Closes ${openStatus.closesAt}` : `Closed · Opens ${openStatus.opensAt}`}
+          <Badge tone={orderable ? 'green' : 'red'}>
+            {!restaurant.isActive || !restaurant.isAccepted
+              ? 'Currently unavailable'
+              : openStatus.isOpen
+                ? `Open now · Closes ${openStatus.closesAt}`
+                : `Closed · Opens ${openStatus.opensAt}`}
           </Badge>
         </div>
 
@@ -206,11 +215,13 @@ export default function RestaurantDetailPage() {
               <h3 className="mb-1 text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 {group.name} ({group.items.length})
               </h3>
-              <div>
+              <div className={config.restaurantItemsLayout === 'TWO_COLUMN' ? classNames('grid gap-3.5', columnLayoutClass(config.restaurantItemsLayout)) : undefined}>
                 {group.items.map((item) => (
                   <MenuItemCard
                     key={item.id}
                     item={item}
+                    compact={config.restaurantItemsLayout === 'TWO_COLUMN'}
+                    disabled={!orderable}
                     quantityInCart={quantityFor(item)}
                     onAdd={() => handleAddClick(item)}
                     onView={() => setSheetItem(item)}
@@ -236,7 +247,8 @@ export default function RestaurantDetailPage() {
 
       {restaurant.certificate && (
         <div className="border-b-8 border-slate-100 flex items-center gap-2.5 px-4 py-4 text-xs text-slate-500 dark:text-slate-400">
-          <ShieldCheck size={16} className="shrink-0 text-slate-400" />
+          {/* Placeholder badge at /public/fssai.png — drop a real fssai.png over it later, no code change needed. */}
+          <img src="/fssai.png" alt="FSSAI" className="h-6 w-6 shrink-0" />
           <span>
             FSSAI License No. <span className="font-mono font-medium text-slate-600 dark:text-slate-300">{restaurant.certificate}</span>
           </span>
@@ -293,6 +305,11 @@ export default function RestaurantDetailPage() {
           setPendingAdd(null)
         }}
       />
+
+      {/* CartFloatingBar and OngoingOrderBar are `fixed` — they float over content rather than
+            pushing it up, and can stack up to ~13rem tall together (cart bar + an active order).
+            Reserves enough bottom space that the last grid row never renders underneath them. */}
+      <div className="h-8 md:hidden" aria-hidden="true" />
     </div>
   )
 }

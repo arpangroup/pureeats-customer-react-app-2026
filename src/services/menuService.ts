@@ -13,6 +13,46 @@ export interface PopularItem extends MenuItem {
   restaurantName: string
 }
 
+export interface RecommendedItem extends MenuItem {
+  restaurantName: string
+  restaurantImage: string
+}
+
+interface LiveRecommendedItem {
+  id: number
+  restaurantId: number
+  restaurantName: string
+  restaurantImage: string
+  itemCategoryId: number
+  name: string
+  price: string
+  oldPrice: string | null
+  image: string
+  desc: string
+  isVeg: boolean
+}
+
+function mapLiveRecommended(d: LiveRecommendedItem): RecommendedItem {
+  return {
+    id: d.id,
+    restaurantId: d.restaurantId,
+    restaurantName: d.restaurantName,
+    restaurantImage: d.restaurantImage,
+    itemCategoryId: d.itemCategoryId,
+    name: d.name,
+    description: d.desc,
+    price: toNumber(d.price),
+    oldPrice: d.oldPrice ? toNumber(d.oldPrice) : null,
+    image: d.image,
+    isVeg: d.isVeg,
+    isRecommended: true,
+    isPopular: false,
+    isNew: false,
+    isActive: true,
+    addonCategoryIds: [],
+  }
+}
+
 interface LiveItem {
   id: number
   restaurantId: number
@@ -103,5 +143,39 @@ export const menuService = {
         .map((i) => ({ ...i, restaurantName: restaurants.find((r) => r.id === i.restaurantId)?.name ?? 'Restaurant' }))
     }
     return []
+  },
+
+  /** Cross-restaurant recommended items — powers the Home page's "Recommended" section. */
+  async recommendedItems(limit = 12): Promise<RecommendedItem[]> {
+    if (IS_MOCK) {
+      await mockDelay(200)
+      return items
+        .filter((i) => i.isActive && i.isRecommended)
+        .slice(0, limit)
+        .map((i) => {
+          const restaurant = restaurants.find((r) => r.id === i.restaurantId)
+          return { ...i, restaurantName: restaurant?.name ?? 'Restaurant', restaurantImage: restaurant?.image ?? '' }
+        })
+    }
+    const { data } = await apiClient.get<{ data: LiveRecommendedItem[] }>('/items/recommended', { params: { limit } })
+    return data.data.map(mapLiveRecommended)
+  },
+
+  /** Cross-restaurant dish name search — powers the Search page's "Dishes" tab, alongside restaurantService.search's restaurant-name search. */
+  async search(query: string, limit = 20): Promise<RecommendedItem[]> {
+    const q = query.trim().toLowerCase()
+    if (!q) return []
+    if (IS_MOCK) {
+      await mockDelay()
+      return items
+        .filter((i) => i.isActive && i.name.toLowerCase().includes(q))
+        .slice(0, limit)
+        .map((i) => {
+          const restaurant = restaurants.find((r) => r.id === i.restaurantId)
+          return { ...i, restaurantName: restaurant?.name ?? 'Restaurant', restaurantImage: restaurant?.image ?? '' }
+        })
+    }
+    const { data } = await apiClient.get<{ data: LiveRecommendedItem[] }>('/items/search', { params: { q: query, limit } })
+    return data.data.map(mapLiveRecommended)
   },
 }

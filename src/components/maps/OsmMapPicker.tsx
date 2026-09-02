@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Search } from 'lucide-react'
@@ -8,6 +8,10 @@ interface OsmMapPickerProps {
   latitude: number
   longitude: number
   onChange: (coords: { latitude: number; longitude: number }, formattedAddress?: string) => void
+  /** Rendered absolutely-positioned over the map itself (e.g. a floating "use my location" button, bottom-right) — see AddressFormPage. */
+  overlay?: ReactNode
+  /** Full-bleed, taller map for the address form's redesigned top-of-page layout; the compact 220px default is used elsewhere (e.g. inline pickers). */
+  tall?: boolean
 }
 
 // Leaflet's default marker PNGs resolve to broken relative paths once bundled — an inline SVG
@@ -28,7 +32,7 @@ const PIN_ICON = L.divIcon({
  * form always has a working map. Same contract: dragging or clicking places the pin and reverse-
  * geocodes it back through onChange, and the search box re-centers the map on a picked result.
  */
-export function OsmMapPicker({ latitude, longitude, onChange }: OsmMapPickerProps) {
+export function OsmMapPicker({ latitude, longitude, onChange, overlay, tall }: OsmMapPickerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
   const markerRef = useRef<L.Marker | null>(null)
@@ -49,7 +53,7 @@ export function OsmMapPicker({ latitude, longitude, onChange }: OsmMapPickerProp
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
-    const map = L.map(containerRef.current, { zoomControl: true, attributionControl: true }).setView([latitude, longitude], 16)
+    const map = L.map(containerRef.current, { zoomControl: false, attributionControl: true }).setView([latitude, longitude], 16)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -116,46 +120,60 @@ export function OsmMapPicker({ latitude, longitude, onChange }: OsmMapPickerProp
     movePin(result.latitude, result.longitude, true)
   }
 
+  const searchBox = (
+    <div className={tall ? 'relative z-[1100] p-3' : 'relative z-[1100]'}>
+      <div className="input flex items-center gap-2 bg-white shadow-md dark:bg-slate-900">
+        <Search size={15} className="shrink-0 text-slate-400" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => results.length > 0 && setShowResults(true)}
+          onBlur={() => setTimeout(() => setShowResults(false), 150)}
+          placeholder="Search a place to center the map"
+          className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+        />
+      </div>
+      {showResults && query.trim() && (
+        <div className="absolute inset-x-0 top-full z-[1100] mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+          {searching ? (
+            <p className="px-3 py-2 text-xs text-slate-400">Searching…</p>
+          ) : results.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-slate-400">No matches found</p>
+          ) : (
+            results.map((r, i) => (
+              <button
+                key={i}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pickResult(r)}
+                className="block w-full truncate px-3 py-2 text-left text-xs text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                {r.label}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+
+  if (tall) {
+    return (
+      <div className="relative">
+        <div ref={containerRef} className="h-[320px] w-full sm:h-[380px]" />
+        {/* Leaflet's own panes carry z-index up to 1000 and escape a plain wrapper's stacking
+            context, so both the search box and the locate-me overlay need z-[1100]+ to sit above them. */}
+        <div className="pointer-events-none absolute inset-0 z-[1100]">
+          <div className="pointer-events-auto">{searchBox}</div>
+          {overlay && <div className="pointer-events-auto absolute bottom-4 right-4">{overlay}</div>}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-2">
-      {/* Leaflet's internal panes (markers, zoom controls, etc.) carry z-index up to 1000 and
-          escape this wrapper's stacking context since the map container itself has no z-index
-          of its own — z-20 alone would still lose to them, so both the wrapper and the dropdown
-          below need to clear that. */}
-      <div className="relative z-[1100]">
-        <div className="input flex items-center gap-2">
-          <Search size={15} className="shrink-0 text-slate-400" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => results.length > 0 && setShowResults(true)}
-            onBlur={() => setTimeout(() => setShowResults(false), 150)}
-            placeholder="Search a place to center the map"
-            className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
-          />
-        </div>
-        {showResults && query.trim() && (
-          <div className="absolute inset-x-0 top-full z-[1100] mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900">
-            {searching ? (
-              <p className="px-3 py-2 text-xs text-slate-400">Searching…</p>
-            ) : results.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-slate-400">No matches found</p>
-            ) : (
-              results.map((r, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => pickResult(r)}
-                  className="block w-full truncate px-3 py-2 text-left text-xs text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
-                >
-                  {r.label}
-                </button>
-              ))
-            )}
-          </div>
-        )}
-      </div>
+      {searchBox}
       <div ref={containerRef} className="h-[220px] w-full overflow-hidden rounded-xl" />
       <p className="text-xs text-slate-400">Drag the pin, or tap anywhere on the map, to fine-tune your exact delivery location.</p>
     </div>

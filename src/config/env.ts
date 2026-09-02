@@ -30,6 +30,24 @@ export const UPI_PAYEE_NAME = import.meta.env.VITE_UPI_PAYEE_NAME || 'PureEats'
 /** This build's own version (from package.json, injected by vite.config.ts) — sent to /app-config so the backend can decide whether it's current. */
 export const APP_VERSION = __APP_VERSION__
 
+/**
+ * Firebase project config for push notifications (order status updates, promotions) — every field
+ * defaults to empty since no Firebase project exists yet. `src/lib/firebaseMessaging.ts` checks
+ * `hasFirebaseConfig` before doing anything; with it unset, push mode silently behaves as if the
+ * backend's `orderStatusUpdateMode` were POLL, however that flag is actually set. Fill these in
+ * (gitignored .env.local) once a real Firebase project is created — no code change needed after.
+ */
+export const FIREBASE_CONFIG = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+}
+export const FIREBASE_VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || ''
+export const HAS_FIREBASE_CONFIG = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId && FIREBASE_CONFIG.appId && FIREBASE_VAPID_KEY)
+
 export const AUTH_TOKEN_STORAGE_KEY = 'pureeats.auth.token'
 export const AUTH_USER_STORAGE_KEY = 'pureeats.auth.user'
 export const AUTH_REFRESH_TOKEN_STORAGE_KEY = 'pureeats.auth.refreshToken'

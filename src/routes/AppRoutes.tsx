@@ -9,8 +9,10 @@ import VerifyPage from '@/pages/auth/VerifyPage'
 import HomePage from '@/pages/HomePage'
 import SearchPage from '@/pages/SearchPage'
 import RestaurantListPage from '@/pages/RestaurantListPage'
+import TopPicksPage from '@/pages/TopPicksPage'
 import RestaurantDetailPage from '@/pages/RestaurantDetailPage'
 import CartPage from '@/pages/CartPage'
+import CouponsPage from '@/pages/CouponsPage'
 import CheckoutPage from '@/pages/CheckoutPage'
 import OrderConfirmationPage from '@/pages/OrderConfirmationPage'
 import OrdersPage from '@/pages/OrdersPage'
@@ -37,8 +39,10 @@ export function AppRoutes() {
         <Route path="/" element={<HomePage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/category/:id" element={<RestaurantListPage />} />
+        <Route path="/top-picks" element={<TopPicksPage />} />
         <Route path="/restaurants/:id" element={<RestaurantDetailPage />} />
         <Route path="/cart" element={<CartPage />} />
+        <Route path="/coupons" element={<CouponsPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/orders/:id" element={<OrderTrackingPage />} />

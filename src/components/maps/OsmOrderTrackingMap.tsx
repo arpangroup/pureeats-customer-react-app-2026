@@ -17,7 +17,7 @@ const RIDER_ICON = emojiIcon('🛵')
  * VITE_GOOGLE_MAPS_API_KEY is configured (or the Google script fails to load), mirroring the same
  * restaurant/destination markers, dashed route line, and simulated rider animation.
  */
-export function OsmOrderTrackingMap({ restaurant, destination, status }: { restaurant: LatLng; destination: LatLng; status: OrderStatus }) {
+export function OsmOrderTrackingMap({ restaurant, destination, status, tall }: { restaurant: LatLng; destination: LatLng; status: OrderStatus; tall?: boolean }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
   const riderMarkerRef = useRef<L.Marker | null>(null)
@@ -29,7 +29,7 @@ export function OsmOrderTrackingMap({ restaurant, destination, status }: { resta
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
     const bounds = L.latLngBounds([restaurant.lat, restaurant.lng], [destination.lat, destination.lng])
-    const map = L.map(containerRef.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: false }).fitBounds(bounds, { padding: [28, 28] })
+    const map = L.map(containerRef.current, { zoomControl: false, attributionControl: true, scrollWheelZoom: false }).fitBounds(bounds, { padding: [28, 28] })
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -70,5 +70,5 @@ export function OsmOrderTrackingMap({ restaurant, destination, status }: { resta
     }
   }, [riderPosition.lat, riderPosition.lng, showRider, status])
 
-  return <div ref={containerRef} className="h-[200px] w-full overflow-hidden rounded-xl" />
+  return <div ref={containerRef} className={tall ? 'h-[340px] w-full' : 'h-[200px] w-full overflow-hidden rounded-xl'} />
 }

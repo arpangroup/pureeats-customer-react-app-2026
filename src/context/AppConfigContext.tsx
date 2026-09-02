@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { RefreshCw } from 'lucide-react'
-import { appConfigService } from '@/services/appConfigService'
+import { appConfigService, DEFAULT_DELIVERY_INSTRUCTION_OPTIONS } from '@/services/appConfigService'
 import { GOOGLE_MAPS_API_KEY } from '@/config/env'
 import { useAuth } from '@/hooks/useAuth'
-import type { AppConfig } from '@/types/entities'
+import type { AppConfig, ColumnLayout, DeliveryInstructionOption } from '@/types/entities'
 
 interface AppConfigContextValue {
   config: AppConfig | null
@@ -11,12 +11,43 @@ interface AppConfigContextValue {
   googleMapsApiKey: string
   /** Empty array (not yet loaded / admin hasn't restricted anything) means "don't filter — show every payment method". */
   enabledPaymentMethods: string[]
+  /** True before the very first fetch resolves — every flag below already carries a safe default, so this is only useful to suppress a layout flash, never required for correctness. */
+  isLoaded: boolean
+  audioSearchEnabled: boolean
+  promoSliderEnabled: boolean
+  topPicksEnabled: boolean
+  recommendedItemsEnabled: boolean
+  restaurantListLayout: ColumnLayout
+  recommendedItemsLayout: ColumnLayout
+  restaurantItemsLayout: ColumnLayout
+  deliveryInstructionMode: 'TEXT' | 'QUICK_OPTIONS'
+  deliveryInstructionOptions: DeliveryInstructionOption[]
+  mapProvider: 'OSM' | 'GOOGLE'
+  orderStatusUpdateMode: 'POLL' | 'PUSH' | 'BOTH'
+  orderStatusPollIntervalMs: number
+}
+
+const DEFAULTS: Omit<AppConfigContextValue, 'config' | 'googleMapsApiKey' | 'enabledPaymentMethods' | 'isLoaded'> = {
+  audioSearchEnabled: false,
+  promoSliderEnabled: true,
+  topPicksEnabled: true,
+  recommendedItemsEnabled: true,
+  restaurantListLayout: 'TWO_COLUMN',
+  recommendedItemsLayout: 'TWO_COLUMN',
+  restaurantItemsLayout: 'TWO_COLUMN',
+  deliveryInstructionMode: 'QUICK_OPTIONS',
+  deliveryInstructionOptions: DEFAULT_DELIVERY_INSTRUCTION_OPTIONS,
+  mapProvider: 'OSM',
+  orderStatusUpdateMode: 'POLL',
+  orderStatusPollIntervalMs: 8000,
 }
 
 const AppConfigContext = createContext<AppConfigContextValue>({
   config: null,
   googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   enabledPaymentMethods: [],
+  isLoaded: false,
+  ...DEFAULTS,
 })
 
 async function clearCachesAndServiceWorker(): Promise<void> {
@@ -59,6 +90,19 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     config,
     googleMapsApiKey: config?.googleMapsApiKey || GOOGLE_MAPS_API_KEY,
     enabledPaymentMethods: config?.enabledPaymentMethods ?? [],
+    isLoaded: config !== null,
+    audioSearchEnabled: config?.audioSearchEnabled ?? DEFAULTS.audioSearchEnabled,
+    promoSliderEnabled: config?.promoSliderEnabled ?? DEFAULTS.promoSliderEnabled,
+    topPicksEnabled: config?.topPicksEnabled ?? DEFAULTS.topPicksEnabled,
+    recommendedItemsEnabled: config?.recommendedItemsEnabled ?? DEFAULTS.recommendedItemsEnabled,
+    restaurantListLayout: config?.restaurantListLayout ?? DEFAULTS.restaurantListLayout,
+    recommendedItemsLayout: config?.recommendedItemsLayout ?? DEFAULTS.recommendedItemsLayout,
+    restaurantItemsLayout: config?.restaurantItemsLayout ?? DEFAULTS.restaurantItemsLayout,
+    deliveryInstructionMode: config?.deliveryInstructionMode ?? DEFAULTS.deliveryInstructionMode,
+    deliveryInstructionOptions: config?.deliveryInstructionOptions?.length ? config.deliveryInstructionOptions : DEFAULTS.deliveryInstructionOptions,
+    mapProvider: config?.mapProvider ?? DEFAULTS.mapProvider,
+    orderStatusUpdateMode: config?.orderStatusUpdateMode ?? DEFAULTS.orderStatusUpdateMode,
+    orderStatusPollIntervalMs: config?.orderStatusPollIntervalMs || DEFAULTS.orderStatusPollIntervalMs,
   }
 
   return (
