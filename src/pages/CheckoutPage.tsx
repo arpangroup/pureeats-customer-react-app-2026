@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Banknote, CheckCircle2, Smartphone, Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -51,9 +51,20 @@ export default function CheckoutPage() {
   const { data: walletBalance } = useAsync(() => (user ? walletService.balance(user.id) : Promise.resolve(0)), [user?.id])
   const { enabledPaymentMethods } = useAppConfig()
   // Empty list means the admin hasn't restricted anything — show every option, same as before this existed.
-  const paymentOptions = enabledPaymentMethods.length === 0
+  const paymentOptions = (enabledPaymentMethods.length === 0
     ? PAYMENT_OPTIONS
     : PAYMENT_OPTIONS.filter((o) => enabledPaymentMethods.includes(o.mode))
+  ).filter((o) => o.mode !== 'COD' || restaurant?.isAcceptCod !== false)
+
+  // Restaurant data (and so isAcceptCod) loads after the initial 'COD' default — swap to the first
+  // still-available option rather than letting the customer submit a payment mode they can no
+  // longer see selected (or that's no longer offered at all).
+  useEffect(() => {
+    if (paymentOptions.length > 0 && !paymentOptions.some((o) => o.mode === paymentMode)) {
+      setPaymentMode(paymentOptions[0].mode)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentOptions.map((o) => o.mode).join(',')])
 
   const needsAddress = cart.deliveryType === 'DELIVERY'
 
