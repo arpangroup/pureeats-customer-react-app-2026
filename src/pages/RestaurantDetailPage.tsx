@@ -14,8 +14,7 @@ import { MenuJumpSheet } from '@/components/restaurants/MenuJumpSheet'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FreebieNudge } from '@/components/cart/FreebieNudge'
 import { useAppConfig } from '@/context/AppConfigContext'
-import { getOpenStatus } from '@/lib/restaurantHours'
-import { isRestaurantOrderable } from '@/lib/restaurantAvailability'
+import { getAvailability } from '@/lib/restaurantAvailability'
 import { columnLayoutClass } from '@/lib/columnLayout'
 import { classNames } from '@/lib/format'
 import type { CartAddon, MenuItem } from '@/types/entities'
@@ -100,8 +99,8 @@ export default function RestaurantDetailPage() {
   if (loadingRestaurant) return <LoadingBlock />
   if (!restaurant) return <EmptyState title="Restaurant not found" />
 
-  const openStatus = getOpenStatus(restaurant.openingTime, restaurant.closingTime)
-  const orderable = isRestaurantOrderable(restaurant)
+  const availability = getAvailability(restaurant)
+  const orderable = availability.orderable
   const showNudge = cart.restaurantId === restaurantId && cart.lines.length > 0 && coupons
 
   return (
@@ -141,12 +140,8 @@ export default function RestaurantDetailPage() {
           </span>
         </div>
         <div className="mt-2">
-          <Badge tone={orderable ? 'green' : 'red'}>
-            {!restaurant.isActive || !restaurant.isAccepted
-              ? 'Currently unavailable'
-              : openStatus.isOpen
-                ? `Open now · Closes ${openStatus.closesAt}`
-                : `Closed · Opens ${openStatus.opensAt}`}
+          <Badge tone={!availability.isOpen ? 'red' : availability.isClosingSoon ? 'amber' : 'green'}>
+            {availability.label}
           </Badge>
         </div>
 

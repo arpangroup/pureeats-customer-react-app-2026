@@ -5,7 +5,7 @@ import { placeholderImage } from '@/lib/placeholderImage'
 import { IS_MOCK } from '@/config/env'
 import { restaurants } from '@/mocks/fixtures/restaurants'
 import { restaurantCategories } from '@/mocks/fixtures/restaurantCategories'
-import type { Restaurant, RestaurantCategory, RestaurantDeliveryType } from '@/types/entities'
+import type { Restaurant, RestaurantCategory, RestaurantDeliveryType, RestaurantOpenStatus } from '@/types/entities'
 
 // The live /restaurant-categories endpoint doesn't return an image yet — fall back to a
 // placeholder built client-side, same as mock mode. Known cuisine names get the same
@@ -61,6 +61,7 @@ interface LiveRestaurantSummary {
   openingTime: string
   closingTime: string
   isFeatured: boolean
+  openStatus: RestaurantOpenStatus
 }
 
 interface LiveRestaurantDetail extends LiveRestaurantSummary {
@@ -112,6 +113,7 @@ function mapLive(d: LiveRestaurantSummary | LiveRestaurantDetail): Restaurant {
     closingTime: d.closingTime ?? '23:59',
     certificate: detail.certificate ?? null,
     categoryIds: [],
+    openStatus: d.openStatus,
   }
 }
 

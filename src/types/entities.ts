@@ -25,6 +25,24 @@ export interface RestaurantCategory {
 
 export type RestaurantDeliveryType = 'delivery' | 'self-pickup' | 'both'
 
+/**
+ * The real-time, day-aware open/closed answer computed server-side from the restaurant's actual
+ * weekly schedule (today's weekday against today's slots) — unlike the legacy openingTime/closingTime
+ * pair below, which is never day-aware. Absent for restaurants running on mock fixtures, which fall
+ * back to computing from openingTime/closingTime client-side (see lib/restaurantAvailability.ts).
+ */
+export interface RestaurantOpenStatus {
+  isOpenNow: boolean
+  /** True only alongside isOpenNow — the current slot's close time is within the "closing soon" window. */
+  isClosingSoon: boolean
+  /** "HH:mm", set only when isOpenNow. */
+  closesAt: string | null
+  /** "HH:mm", set only when !isOpenNow and a future opening exists this week. */
+  nextOpensAt: string | null
+  /** "today" | "tomorrow" | a lowercase weekday name, set only alongside nextOpensAt. */
+  nextOpensLabel: string | null
+}
+
 export interface Restaurant {
   id: number
   name: string
@@ -58,6 +76,7 @@ export interface Restaurant {
   openingTime: string
   closingTime: string
   categoryIds: number[]
+  openStatus?: RestaurantOpenStatus
 }
 
 export interface ItemCategory {
