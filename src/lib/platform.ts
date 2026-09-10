@@ -51,7 +51,7 @@ export function detectPlatform(): PlatformInfo {
   return { os, browser, isStandalone }
 }
 
-export interface LocationSettingsGuide {
+export interface PermissionSettingsGuide {
   /** Short label for the settings surface these steps lead to, e.g. "Chrome site settings". */
   target: string
   steps: string[]
@@ -67,14 +67,47 @@ export interface LocationSettingsGuide {
   isSiteSpecific?: boolean
 }
 
-/** Step-by-step instructions for re-enabling a once-denied location permission, tailored to the platform PureEats is currently running on. Browsers never let a site re-trigger its own permission prompt once the user has said "block" — the user has to flip it back on themselves. */
-export function getLocationSettingsGuide({ os, browser, isStandalone }: PlatformInfo): LocationSettingsGuide {
+/** Alias kept for the existing call site — every user of this type predates {@link getPermissionSettingsGuide} generalizing beyond just location. */
+export type LocationSettingsGuide = PermissionSettingsGuide
+
+/** The exact wording that changes between permissions in an otherwise-identical set of steps — everything else (which settings surface, which lock icon to click) is permission-agnostic. */
+const PERMISSION_LABEL: Record<PermissionKind, string> = {
+  location: 'Location',
+  notifications: 'Notifications',
+  microphone: 'Microphone',
+  camera: 'Camera',
+}
+
+export type PermissionKind = 'location' | 'notifications' | 'microphone' | 'camera'
+
+/** Step-by-step instructions for re-enabling a once-denied permission, tailored to the platform PureEats is currently running on. Browsers never let a site re-trigger its own permission prompt once the user has said "block" — the user has to flip it back on themselves. */
+export function getPermissionSettingsGuide({ os, browser, isStandalone }: PlatformInfo, permission: PermissionKind): PermissionSettingsGuide {
+  const label = PERMISSION_LABEL[permission]
+
   if (os === 'ios') {
+    if (permission === 'notifications') {
+      // Notifications live under their own top-level Settings entry on iOS, not inside the app's
+      // own settings page the way every other permission does — same for a home-screen-installed
+      // PWA or Safari.
+      return {
+        target: 'iPhone Settings → Notifications → PureEats',
+        steps: ['Open the iPhone Settings app', 'Tap "Notifications"', 'Scroll down and tap "PureEats"', 'Turn on "Allow Notifications"', 'Come back and reopen PureEats'],
+      }
+    }
+    if (permission === 'location') {
+      return {
+        target: isStandalone ? 'iPhone Settings → PureEats' : 'iPhone Settings → Safari',
+        steps: isStandalone
+          ? ['Open the iPhone Settings app', 'Scroll down to "PureEats"', 'Tap "Location" and choose "While Using the App"', 'Come back and reopen PureEats']
+          : ['Open the iPhone Settings app', 'Scroll down to Safari (or Privacy & Security → Location Services)', 'Tap "Location" and choose "Ask" or "Allow"', 'Reload this page'],
+      }
+    }
+    // Microphone/Camera share the same per-app toggle shape as Location on iOS, just under their own label.
     return {
       target: isStandalone ? 'iPhone Settings → PureEats' : 'iPhone Settings → Safari',
       steps: isStandalone
-        ? ['Open the iPhone Settings app', 'Scroll down to "PureEats"', 'Tap "Location" and choose "While Using the App"', 'Come back and reopen PureEats']
-        : ['Open the iPhone Settings app', 'Scroll down to Safari (or Privacy & Security → Location Services)', 'Tap "Location" and choose "Ask" or "Allow"', 'Reload this page'],
+        ? ['Open the iPhone Settings app', 'Scroll down to "PureEats"', `Turn on "${label}"`, 'Come back and reopen PureEats']
+        : ['Open the iPhone Settings app', 'Scroll down and tap "Safari"', `Find "${label}" and set it to "Allow"`, 'Reload this page'],
     }
   }
 
@@ -82,12 +115,12 @@ export function getLocationSettingsGuide({ os, browser, isStandalone }: Platform
     if (isStandalone) {
       return {
         target: 'Android Settings → Apps → PureEats',
-        steps: ['Open Android Settings', 'Go to "Apps" → "PureEats"', 'Tap "Permissions" → "Location"', 'Select "Allow" and come back to the app'],
+        steps: ['Open Android Settings', 'Go to "Apps" → "PureEats"', `Tap "Permissions" → "${label}"`, 'Select "Allow" and come back to the app'],
       }
     }
     return {
       target: 'Chrome site settings',
-      steps: ['Tap the lock/info icon in the address bar', 'Tap "Permissions" (or "Site settings")', 'Set "Location" to "Allow"', 'Reload this page'],
+      steps: ['Tap the lock/info icon in the address bar', 'Tap "Permissions" (or "Site settings")', `Set "${label}" to "Allow"`, 'Reload this page'],
     }
   }
 
@@ -101,7 +134,7 @@ export function getLocationSettingsGuide({ os, browser, isStandalone }: Platform
       steps: [
         'Click the lock icon in the address bar',
         'Open "Connection secure" → "More information" → "Permissions"',
-        'Clear the "Blocked" setting for Location',
+        `Clear the "Blocked" setting for ${label}`,
         'Reload this page',
       ],
       copyablePath: 'about:preferences#privacy',
@@ -111,7 +144,7 @@ export function getLocationSettingsGuide({ os, browser, isStandalone }: Platform
   if (browser === 'safari') {
     return {
       target: 'Safari → Settings for This Website',
-      steps: ['Click "Safari" in the menu bar → "Settings for This Website…"', 'Set "Location" to "Allow"', 'Reload this page'],
+      steps: ['Click "Safari" in the menu bar → "Settings for This Website…"', `Set "${label}" to "Allow"`, 'Reload this page'],
     }
   }
 
@@ -122,8 +155,17 @@ export function getLocationSettingsGuide({ os, browser, isStandalone }: Platform
   const scheme = browser === 'edge' ? 'edge' : 'chrome'
   return {
     target: browser === 'edge' ? 'Edge site settings' : 'Chrome site settings',
-    steps: ['Click the lock/info icon at the start of the address bar', 'Click "Site settings"', 'Set "Location" to "Allow"', 'Reload this page'],
+    steps: ['Click the lock/info icon at the start of the address bar', 'Click "Site settings"', `Set "${label}" to "Allow"`, 'Reload this page'],
     copyablePath: `${scheme}://settings/content/siteDetails?site=${encodeURIComponent(window.location.origin)}`,
     isSiteSpecific: true,
   }
+}
+
+/** Thin convenience wrapper — kept so the existing call site (LocationPermissionDialog) doesn't need to pass a permission kind it already knows from context. */
+export function getLocationSettingsGuide(platform: PlatformInfo): PermissionSettingsGuide {
+  return getPermissionSettingsGuide(platform, 'location')
+}
+
+export function getNotificationSettingsGuide(platform: PlatformInfo): PermissionSettingsGuide {
+  return getPermissionSettingsGuide(platform, 'notifications')
 }
