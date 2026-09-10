@@ -6,13 +6,15 @@ import { restaurantService } from '@/services/restaurantService'
 import { couponService } from '@/services/couponService'
 import { menuService } from '@/services/menuService'
 import { promoSliderService } from '@/services/promoSliderService'
-import { useActiveLocation } from '@/hooks/useLocation'
+import { useLocationAutoDetect } from '@/hooks/useLocationAutoDetect'
+import { useActiveLocationLabel } from '@/hooks/useActiveLocationLabel'
 import { useAppConfig } from '@/context/AppConfigContext'
 import { RestaurantCard } from '@/components/restaurants/RestaurantCard'
 import { RecommendedItemCard } from '@/components/home/RecommendedItemCard'
 import { PromoSlider } from '@/components/home/PromoSlider'
 import { AudioSearchIcon } from '@/components/ui/AudioSearchIcon'
 import { OngoingOrderBar } from '@/components/orders/OngoingOrderBar'
+import { LocationPermissionDialog } from '@/components/location/LocationPermissionDialog'
 import { Skeleton } from '@/components/ui/Feedback'
 import { columnLayoutClass, evenOutForGrid } from '@/lib/columnLayout'
 import { selectTopPicks } from '@/lib/topPicks'
@@ -20,7 +22,8 @@ import { classNames } from '@/lib/format'
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { activeAddress } = useActiveLocation()
+  const { dialogOpen, dialogState, requesting, handleAllow, handleSkip, handleRetryAfterSettingsChange } = useLocationAutoDetect()
+  const locationLabel = useActiveLocationLabel()
   const config = useAppConfig()
   const { data: restaurants, isLoading } = useAsync(() => restaurantService.list(), [])
   const { data: categories } = useAsync(() => restaurantService.categories(), [])
@@ -47,7 +50,7 @@ export default function HomePage() {
       <div className="sticky top-0 z-20 border-b border-slate-200 bg-white px-4 py-3 pt-safe dark:border-slate-800 dark:bg-slate-900 md:hidden">
         <button onClick={() => navigate('/profile/addresses')} className="flex items-center gap-1.5 text-sm font-semibold text-slate-800 dark:text-slate-100">
           <MapPin size={16} className="text-brand-600" />
-          {activeAddress ? activeAddress.tag ?? 'Delivering to' : 'Set your location'}
+          <span className="max-w-[220px] truncate">{locationLabel}</span>
           <ChevronDown size={14} className="text-slate-400" />
         </button>
         <button onClick={() => navigate('/search')} className="input mt-2.5 flex items-center gap-2 text-left text-sm text-slate-400">
@@ -158,6 +161,7 @@ export default function HomePage() {
         <div className="h-16 md:hidden" aria-hidden="true" />
       </div>
       <OngoingOrderBar />
+      <LocationPermissionDialog open={dialogOpen} state={dialogState} requesting={requesting} onAllow={handleAllow} onSkip={handleSkip} onRetry={handleRetryAfterSettingsChange} />
     </div>
   )
 }

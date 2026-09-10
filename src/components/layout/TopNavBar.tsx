@@ -3,13 +3,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ChevronDown, LogOut, MapPin, Search, ShoppingCart, UtensilsCrossed } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
-import { useActiveLocation } from '@/hooks/useLocation'
+import { useActiveLocationLabel } from '@/hooks/useActiveLocationLabel'
 import { initials } from '@/lib/format'
 
 export function TopNavBar() {
   const { user, isAuthenticated, logout } = useAuth()
   const { itemCount } = useCart()
-  const { activeAddress } = useActiveLocation()
+  const locationLabel = useActiveLocationLabel()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -31,7 +31,7 @@ export function TopNavBar() {
           className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           <MapPin size={16} className="text-brand-600" />
-          <span className="max-w-[160px] truncate font-medium">{activeAddress ? activeAddress.tag ?? activeAddress.address : 'Set location'}</span>
+          <span className="max-w-[160px] truncate font-medium">{locationLabel}</span>
           <ChevronDown size={14} />
         </button>
 
