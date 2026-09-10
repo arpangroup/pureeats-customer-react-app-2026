@@ -313,6 +313,7 @@ export interface AppConfig {
   promoSliderEnabled: boolean
   topPicksEnabled: boolean
   recommendedItemsEnabled: boolean
+  cuisineCategorySectionEnabled: boolean
   restaurantListLayout: ColumnLayout
   recommendedItemsLayout: ColumnLayout
   restaurantItemsLayout: ColumnLayout

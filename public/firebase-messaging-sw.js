@@ -25,9 +25,13 @@ const messaging = firebase.messaging()
 // can reconstruct them (see FcmSender#buildDataPayload on the backend). `actions` arrives as a
 // JSON string since FCM data values must be strings.
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || payload.data?.title || 'PureEats'
-  const body = payload.notification?.body || payload.data?.body || ''
-  const image = payload.notification?.image || payload.data?.image
+  // A SILENT push (see PushDisplayMode on the backend — order-status ticks, etc.) never has a
+  // `notification` block, on purpose — that's the whole signal that nothing should pop up here.
+  // The page itself (if open in another tab) still gets it via onMessage regardless.
+  if (!payload.notification) return
+  const title = payload.notification.title || 'PureEats'
+  const body = payload.notification.body || ''
+  const image = payload.notification.image
   const clickAction = payload.fcmOptions?.link || payload.data?.click_action
   let actions
   try {

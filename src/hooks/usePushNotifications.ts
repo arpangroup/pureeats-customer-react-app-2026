@@ -41,9 +41,14 @@ export function usePushNotifications() {
     })
 
     const unsubscribe = onForegroundMessage(firebaseConfig, (payload) => {
-      const title = payload.notification?.title || String(payload.data?.title ?? 'PureEats')
-      const body = payload.notification?.body || String(payload.data?.body ?? '')
-      const image = payload.notification?.image || payload.data?.image
+      // A SILENT push (see PushDisplayMode on the backend — order-status ticks, etc.) never has a
+      // `notification` block, on purpose — that's the whole signal that nothing should pop up here.
+      // Other listeners (useOrderStatusUpdates, OngoingOrderBar) have their own onMessage
+      // subscriptions and still get every message regardless of what this one does with it.
+      if (!payload.notification) return
+      const title = payload.notification.title || 'PureEats'
+      const body = payload.notification.body || ''
+      const image = payload.notification.image
       const clickAction = payload.fcmOptions?.link || payload.data?.click_action
       setToast({ title, body, image, clickAction })
     })

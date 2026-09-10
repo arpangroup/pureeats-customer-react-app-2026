@@ -28,6 +28,7 @@ interface AppConfigContextValue {
   promoSliderEnabled: boolean
   topPicksEnabled: boolean
   recommendedItemsEnabled: boolean
+  cuisineCategorySectionEnabled: boolean
   restaurantListLayout: ColumnLayout
   recommendedItemsLayout: ColumnLayout
   restaurantItemsLayout: ColumnLayout
@@ -53,13 +54,17 @@ const DEFAULTS: Omit<AppConfigContextValue, 'config' | 'googleMapsApiKey' | 'ena
   promoSliderEnabled: true,
   topPicksEnabled: true,
   recommendedItemsEnabled: true,
+  cuisineCategorySectionEnabled: true,
   restaurantListLayout: 'TWO_COLUMN',
   recommendedItemsLayout: 'TWO_COLUMN',
   restaurantItemsLayout: 'TWO_COLUMN',
   deliveryInstructionMode: 'QUICK_OPTIONS',
   deliveryInstructionOptions: DEFAULT_DELIVERY_INSTRUCTION_OPTIONS,
   mapProvider: 'OSM',
-  orderStatusUpdateMode: 'POLL',
+  // Backend default flipped to PUSH too (see AppConfigService#defaults) — polling is now the
+  // fallback (useOrderStatusUpdates backs it off to a slow safety-net interval in PUSH mode),
+  // not the primary mechanism.
+  orderStatusUpdateMode: 'PUSH',
   orderStatusPollIntervalMs: 8000,
   locationResolutionAuthenticatedPriority: defaultLocationResolutionConfig.authenticatedPriority,
   locationResolutionGuestPriority: defaultLocationResolutionConfig.guestPriority,
@@ -138,6 +143,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     promoSliderEnabled: config?.promoSliderEnabled ?? DEFAULTS.promoSliderEnabled,
     topPicksEnabled: config?.topPicksEnabled ?? DEFAULTS.topPicksEnabled,
     recommendedItemsEnabled: config?.recommendedItemsEnabled ?? DEFAULTS.recommendedItemsEnabled,
+    cuisineCategorySectionEnabled: config?.cuisineCategorySectionEnabled ?? DEFAULTS.cuisineCategorySectionEnabled,
     restaurantListLayout: config?.restaurantListLayout ?? DEFAULTS.restaurantListLayout,
     recommendedItemsLayout: config?.recommendedItemsLayout ?? DEFAULTS.recommendedItemsLayout,
     restaurantItemsLayout: config?.restaurantItemsLayout ?? DEFAULTS.restaurantItemsLayout,

@@ -44,10 +44,10 @@ export const notificationService = {
     await apiClient.patch('/notifications/read-all')
   },
 
-  /** Registers/refreshes this device's FCM token — no-op in mock mode (there's no server to notify). */
+  /** Registers/refreshes this device's FCM token — no-op in mock mode (there's no server to notify). `audience: 'CUSTOMER'` auto-subscribes it to the standing "all_customers" broadcast topic (see PushAudience on the backend), so a promo campaign reaches every customer with one send, no per-user loop. */
   async registerPushToken(token: string): Promise<void> {
     if (IS_MOCK) return
-    await apiClient.post('/notifications/push-token', { token })
+    await apiClient.post('/notifications/push-token', { token, audience: 'CUSTOMER' })
   },
 
   async remove(userId: number, id: number): Promise<void> {

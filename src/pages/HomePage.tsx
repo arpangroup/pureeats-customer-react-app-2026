@@ -23,7 +23,10 @@ export default function HomePage() {
   const locationLabel = useActiveLocationLabel()
   const config = useAppConfig()
   const { data: restaurants, isLoading } = useAsync(() => restaurantService.list(), [])
-  const { data: categories } = useAsync(() => restaurantService.categories(), [])
+  const { data: categories } = useAsync(
+    () => (config.cuisineCategorySectionEnabled ? restaurantService.categories() : Promise.resolve([])),
+    [config.cuisineCategorySectionEnabled],
+  )
   const { data: coupons } = useAsync(() => couponService.listGlobal(), [])
   const { data: promoSlides } = useAsync(() => (config.promoSliderEnabled ? promoSliderService.listSlides() : Promise.resolve([])), [config.promoSliderEnabled])
   const { data: recommendedItems, isLoading: loadingRecommended } = useAsync(
@@ -60,7 +63,7 @@ export default function HomePage() {
       <div className="px-4 py-4 md:px-0">
         {config.promoSliderEnabled && promoSlides && promoSlides.length > 0 && <PromoSlider slides={promoSlides} />}
 
-        {categories && categories.length > 0 && (
+        {config.cuisineCategorySectionEnabled && categories && categories.length > 0 && (
           <section className="mb-6">
             <div className="no-scrollbar flex gap-3 overflow-x-auto pb-1">
               {categories.map((c) => (
