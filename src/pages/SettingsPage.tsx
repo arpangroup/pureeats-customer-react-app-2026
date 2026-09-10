@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Download, Moon, Sun } from 'lucide-react'
+import { Download, Moon, ShieldCheck, Sun } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useTheme } from '@/hooks/useTheme'
 import { useAuth } from '@/hooks/useAuth'
@@ -30,6 +30,10 @@ export default function SettingsPage() {
           <button onClick={toggleTheme} className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60">
             {theme === 'dark' ? <Sun size={18} className="text-slate-500 dark:text-slate-400" /> : <Moon size={18} className="text-slate-500 dark:text-slate-400" />}
             <span className="flex-1 text-sm font-medium text-slate-700 dark:text-slate-200">{theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}</span>
+          </button>
+          <button onClick={() => navigate('/profile/settings/permissions')} className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60">
+            <ShieldCheck size={18} className="text-slate-500 dark:text-slate-400" />
+            <span className="flex-1 text-sm font-medium text-slate-700 dark:text-slate-200">App permissions</span>
           </button>
         </div>
 

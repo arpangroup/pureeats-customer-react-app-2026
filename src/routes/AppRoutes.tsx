@@ -25,6 +25,7 @@ import WalletPage from '@/pages/WalletPage'
 import FavoritesPage from '@/pages/FavoritesPage'
 import NotificationsPage from '@/pages/NotificationsPage'
 import SettingsPage from '@/pages/SettingsPage'
+import PermissionsPage from '@/pages/PermissionsPage'
 
 export function AppRoutes() {
   return (
@@ -56,6 +57,7 @@ export function AppRoutes() {
         <Route path="/profile/favorites" element={<FavoritesPage />} />
         <Route path="/profile/notifications" element={<NotificationsPage />} />
         <Route path="/profile/settings" element={<SettingsPage />} />
+        <Route path="/profile/settings/permissions" element={<PermissionsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
