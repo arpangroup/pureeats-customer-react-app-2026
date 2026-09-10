@@ -6,7 +6,6 @@ import { restaurantService } from '@/services/restaurantService'
 import { couponService } from '@/services/couponService'
 import { menuService } from '@/services/menuService'
 import { promoSliderService } from '@/services/promoSliderService'
-import { useLocationAutoDetect } from '@/hooks/useLocationAutoDetect'
 import { useActiveLocationLabel } from '@/hooks/useActiveLocationLabel'
 import { useAppConfig } from '@/context/AppConfigContext'
 import { RestaurantCard } from '@/components/restaurants/RestaurantCard'
@@ -14,7 +13,6 @@ import { RecommendedItemCard } from '@/components/home/RecommendedItemCard'
 import { PromoSlider } from '@/components/home/PromoSlider'
 import { AudioSearchIcon } from '@/components/ui/AudioSearchIcon'
 import { OngoingOrderBar } from '@/components/orders/OngoingOrderBar'
-import { LocationPermissionDialog } from '@/components/location/LocationPermissionDialog'
 import { Skeleton } from '@/components/ui/Feedback'
 import { columnLayoutClass, evenOutForGrid } from '@/lib/columnLayout'
 import { selectTopPicks } from '@/lib/topPicks'
@@ -22,7 +20,6 @@ import { classNames } from '@/lib/format'
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { dialogOpen, dialogState, requesting, handleAllow, handleSkip, handleRetryAfterSettingsChange } = useLocationAutoDetect()
   const locationLabel = useActiveLocationLabel()
   const config = useAppConfig()
   const { data: restaurants, isLoading } = useAsync(() => restaurantService.list(), [])
@@ -161,7 +158,6 @@ export default function HomePage() {
         <div className="h-16 md:hidden" aria-hidden="true" />
       </div>
       <OngoingOrderBar />
-      <LocationPermissionDialog open={dialogOpen} state={dialogState} requesting={requesting} onAllow={handleAllow} onSkip={handleSkip} onRetry={handleRetryAfterSettingsChange} />
     </div>
   )
 }

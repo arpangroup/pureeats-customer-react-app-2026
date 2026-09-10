@@ -4,6 +4,7 @@ import { CartProvider } from '@/context/CartContext'
 import { LocationProvider } from '@/context/LocationContext'
 import { FavoritesProvider } from '@/context/FavoritesContext'
 import { LocationBootstrap } from '@/components/layout/LocationBootstrap'
+import { LocationAutoDetectBootstrap } from '@/components/layout/LocationAutoDetectBootstrap'
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <FavoritesProvider>
           <CartProvider>
             <LocationBootstrap />
+            <LocationAutoDetectBootstrap />
             <AppRoutes />
           </CartProvider>
         </FavoritesProvider>

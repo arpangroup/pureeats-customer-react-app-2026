@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/apiClient'
 import { APP_VERSION, IS_MOCK } from '@/config/env'
+import { defaultLocationResolutionConfig } from '@/config/locationResolution'
 import type { AppConfig, DeliveryInstructionOption } from '@/types/entities'
 
 /** Mirrors AppConfigService.defaultDeliveryInstructionOptions() on the backend — keep the two in sync. */
@@ -30,6 +31,10 @@ const NO_UPDATE: AppConfig = {
   mapProvider: 'OSM',
   orderStatusUpdateMode: 'POLL',
   orderStatusPollIntervalMs: 8000,
+  locationResolutionAuthenticatedPriority: defaultLocationResolutionConfig.authenticatedPriority,
+  locationResolutionGuestPriority: defaultLocationResolutionConfig.guestPriority,
+  locationResolutionAuthenticatedFallbackLabel: defaultLocationResolutionConfig.authenticatedFallbackLabel,
+  locationResolutionGuestFallbackLabel: defaultLocationResolutionConfig.guestFallbackLabel,
 }
 
 export const appConfigService = {

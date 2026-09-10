@@ -1,44 +1,43 @@
 /**
- * Single place controlling how PureEats decides what to show as the customer's "active address"
- * on the home page, and which automatic sources it's allowed to try. Nothing outside this file
- * (and the label-resolution logic in src/lib/locationResolution.ts, which just walks this config)
- * needs to change to retune the behavior — reorder or trim `sourcePriority` and every consumer
- * (HomePage, TopNavBar) picks it up automatically.
+ * Hardcoded fallback for how PureEats decides the customer's "active address" — used until the
+ * backend's /app-config response loads (or for any field an older/unconfigured backend omits). The
+ * live, backend-editable version of this same shape is `AppConfig.locationResolution*` (see
+ * src/context/AppConfigContext.tsx), which an admin can change without a frontend deploy; this file
+ * is only the safety net under it, mirroring AppConfigService.defaults() on the backend the same
+ * way src/services/appConfigService.ts's NO_UPDATE mirrors every other feature flag.
  */
+
+import type { LocationSource } from '@/types/entities'
+
+export type { LocationSource }
 
 /**
  * 'saved'  — the customer's saved default delivery address, fetched from the backend once logged
- *            in (see LocationBootstrap). The only source an order can actually be routed to.
- * 'gps'    — the browser's real Geolocation API, reverse-geocoded to a readable address. Requires
- *            the customer to grant permission — see useLocationAutoDetect for the "ask nicely
- *            first" dialog flow that requests it.
+ *            in (see LocationBootstrap). The only source an order can actually be routed to —
+ *            doesn't apply to guests, who have nothing saved.
+ * 'gps'    — the browser's real Geolocation API, reverse-geocoded to a readable address via the
+ *            backend's GET /geo/reverse-geocode (see src/services/geoService.ts) rather than
+ *            calling a geocoding provider directly from the browser — see the README in
+ *            docs/location-resolution/ for why. Requires the customer to grant permission.
  * 'ip'     — a coarse, city-level guess resolved server-side from the caller's IP
  *            (GET /geo/ip-location) — no permission needed, works for guests, much less precise.
  */
-export type LocationSource = 'saved' | 'gps' | 'ip'
-
 export interface LocationResolutionConfig {
   /**
-   * Priority order for the *displayed* label — the first source in this list with a resolved
-   * value wins, independent of which order they actually finished resolving in. Reorder this to
-   * change priority (e.g. put 'ip' ahead of 'gps' to prefer the instant-but-coarse guess over a
-   * slower precise one). Remove an entry to disable that source outright:
-   *   - drop 'gps' to stop ever requesting browser location permission (no more dialog either)
-   *   - drop 'ip' to stop calling the backend IP-geolocation fallback
-   *   - 'saved' should normally stay first — it's the only source real deliveries route to.
+   * Priority order for the *displayed* label, evaluated separately per auth state since 'saved'
+   * only ever applies to a logged-in customer. The first source in the list with a resolved value
+   * wins, independent of which order they actually finished resolving in.
    */
-  sourcePriority: LocationSource[]
-  /** Shown once every source enabled above has been tried and none resolved a value. */
-  fallbackLabel: {
-    authenticated: string
-    guest: string
-  }
+  authenticatedPriority: LocationSource[]
+  guestPriority: LocationSource[]
+  /** Shown once every source enabled for that auth state has been tried and none resolved a value. */
+  authenticatedFallbackLabel: string
+  guestFallbackLabel: string
 }
 
-export const locationResolutionConfig: LocationResolutionConfig = {
-  sourcePriority: ['saved', 'gps', 'ip'],
-  fallbackLabel: {
-    authenticated: 'Set your location',
-    guest: 'Other',
-  },
+export const defaultLocationResolutionConfig: LocationResolutionConfig = {
+  authenticatedPriority: ['saved', 'gps', 'ip'],
+  guestPriority: ['gps', 'ip'],
+  authenticatedFallbackLabel: 'Set your location',
+  guestFallbackLabel: 'Other',
 }

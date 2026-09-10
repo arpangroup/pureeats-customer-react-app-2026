@@ -286,6 +286,9 @@ export interface OrderSummary {
 
 export type AppUpdateSeverity = 'NONE' | 'SOFT' | 'HARD'
 
+/** Where the "active address" shown on the home page can come from — see src/config/locationResolution.ts and src/lib/locationResolution.ts for how AppConfig's priority lists are interpreted. */
+export type LocationSource = 'saved' | 'gps' | 'ip'
+
 export type ColumnLayout = 'ONE_COLUMN' | 'TWO_COLUMN'
 export type DeliveryInstructionMode = 'TEXT' | 'QUICK_OPTIONS'
 export type MapProvider = 'OSM' | 'GOOGLE'
@@ -318,6 +321,11 @@ export interface AppConfig {
   mapProvider: MapProvider
   orderStatusUpdateMode: OrderStatusUpdateMode
   orderStatusPollIntervalMs: number
+  /** Ordered "saved" | "gps" | "ip" priority for the home page's active-address label — see src/config/locationResolution.ts and src/lib/locationResolution.ts for how this is interpreted. */
+  locationResolutionAuthenticatedPriority: LocationSource[]
+  locationResolutionGuestPriority: LocationSource[]
+  locationResolutionAuthenticatedFallbackLabel: string
+  locationResolutionGuestFallbackLabel: string
 }
 
 export interface WalletTransaction {

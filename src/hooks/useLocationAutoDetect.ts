@@ -1,14 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useActiveLocation } from '@/hooks/useLocation'
+import { useAuth } from '@/hooks/useAuth'
+import { useAppConfig } from '@/context/AppConfigContext'
 import { getCurrentPosition, queryGeolocationPermission, watchGeolocationPermission, type GeolocationPermissionState } from '@/lib/geolocation'
-import { osmReverseGeocode } from '@/lib/osmGeocoding'
 import { geoService } from '@/services/geoService'
-import { locationResolutionConfig } from '@/config/locationResolution'
 
 export type LocationDialogState = 'hidden' | 'prompt' | 'denied'
-
-const GPS_ENABLED = locationResolutionConfig.sourcePriority.includes('gps')
-const IP_ENABLED = locationResolutionConfig.sourcePriority.includes('ip')
 
 // Module-level (not state) so "Continue without location" sticks for the rest of the tab session
 // without persisting anywhere — the dialog is a nudge, not something worth nagging about on every
@@ -16,12 +13,14 @@ const IP_ENABLED = locationResolutionConfig.sourcePriority.includes('ip')
 let dismissedThisSession = false
 
 /**
- * Drives the home page's device-location resolution — which automatic sources exist at all
- * ('gps', 'ip') and how they're prioritized for *display* is controlled entirely by
- * src/config/locationResolution.ts; this hook just decides *when* to attempt each one that's
- * enabled there. Runs regardless of whether the customer already has a saved active address (from
- * LocationBootstrap, once logged in) — the saved address still wins for the displayed label via
- * that same priority config, but real GPS/IP coordinates are still captured for things like
+ * Drives the app's device-location resolution — which automatic sources exist at all ('gps',
+ * 'ip') and how they're prioritized for *display* is controlled entirely by AppConfig's
+ * locationResolutionAuthenticatedPriority/locationResolutionGuestPriority (backend-editable, see
+ * docs/location-resolution/README.md), falling back to defaultLocationResolutionConfig until that
+ * loads; this hook just decides *when* to attempt each source that's enabled for the customer's
+ * current auth state. Runs regardless of whether the customer already has a saved active address
+ * (from LocationBootstrap, once logged in) — the saved address still wins for the displayed label
+ * via that same priority config, but real GPS/IP coordinates are still captured for things like
  * distance-based restaurant sorting. It checks the browser's geolocation permission first —
  * silently detects via GPS if already granted, prompts with our own dialog if undecided (browsers
  * only allow ONE native permission prompt attempt without cooperation, so we want that attempt to
@@ -31,38 +30,48 @@ let dismissedThisSession = false
  */
 export function useLocationAutoDetect() {
   const { setDetectedLocation } = useActiveLocation()
+  const { isAuthenticated } = useAuth()
+  const appConfig = useAppConfig()
   const [dialogState, setDialogState] = useState<LocationDialogState>('hidden')
   const [permissionState, setPermissionState] = useState<GeolocationPermissionState>('prompt')
   const [requesting, setRequesting] = useState(false)
-  const resolvedOnce = useRef(false)
+  // Tracks which auth state we last ran detection for, rather than a plain boolean — so logging in
+  // (a guest whose configured priority excludes 'gps' becoming an authenticated customer whose
+  // priority includes it, or vice versa) gets one fresh attempt instead of being stuck with
+  // whatever was decided before login.
+  const resolvedForAuthState = useRef<boolean | null>(null)
+
+  const sourcePriority = isAuthenticated ? appConfig.locationResolutionAuthenticatedPriority : appConfig.locationResolutionGuestPriority
+  const gpsEnabled = useMemo(() => sourcePriority.includes('gps'), [sourcePriority])
+  const ipEnabled = useMemo(() => sourcePriority.includes('ip'), [sourcePriority])
 
   const detectViaIp = useCallback(async () => {
-    if (!IP_ENABLED) return false
+    if (!ipEnabled) return false
     const loc = await geoService.byIp()
     if (loc.latitude == null || loc.longitude == null) return false
-    const label = loc.city ? `Near ${loc.city}` : (await osmReverseGeocode(loc.latitude, loc.longitude)) ?? 'Approximate location'
+    const label = loc.city ? `Near ${loc.city}` : (await geoService.reverseGeocode(loc.latitude, loc.longitude)).displayName ?? 'Approximate location'
     setDetectedLocation('ip', { label, latitude: loc.latitude, longitude: loc.longitude })
     return true
-  }, [setDetectedLocation])
+  }, [ipEnabled, setDetectedLocation])
 
   const detectViaGps = useCallback(async () => {
-    if (!GPS_ENABLED) return false
+    if (!gpsEnabled) return false
     try {
       const pos = await getCurrentPosition()
-      const label = (await osmReverseGeocode(pos.latitude, pos.longitude)) ?? 'Current location'
+      const label = (await geoService.reverseGeocode(pos.latitude, pos.longitude)).displayName ?? 'Current location'
       setDetectedLocation('gps', { label, latitude: pos.latitude, longitude: pos.longitude })
       setDialogState('hidden')
       return true
     } catch {
       return false
     }
-  }, [setDetectedLocation])
+  }, [gpsEnabled, setDetectedLocation])
 
   useEffect(() => {
-    if (resolvedOnce.current || dismissedThisSession || (!GPS_ENABLED && !IP_ENABLED)) return
-    resolvedOnce.current = true
+    if (resolvedForAuthState.current === isAuthenticated || dismissedThisSession || (!gpsEnabled && !ipEnabled)) return
+    resolvedForAuthState.current = isAuthenticated
     ;(async () => {
-      if (!GPS_ENABLED) {
+      if (!gpsEnabled) {
         await detectViaIp()
         return
       }
@@ -83,17 +92,17 @@ export function useLocationAutoDetect() {
         await detectViaIp()
       }
     })()
-  }, [detectViaGps, detectViaIp])
+  }, [isAuthenticated, gpsEnabled, ipEnabled, detectViaGps, detectViaIp])
 
   // Picks up a permission change made outside our dialog (browser settings, OS settings) while the
   // tab stays open, so the dialog clears itself instead of asking the customer to click "retry".
   useEffect(() => {
-    if (!GPS_ENABLED) return
+    if (!gpsEnabled) return
     return watchGeolocationPermission((state) => {
       setPermissionState(state)
       if (state === 'granted') detectViaGps()
     })
-  }, [detectViaGps])
+  }, [gpsEnabled, detectViaGps])
 
   async function handleAllow() {
     setRequesting(true)

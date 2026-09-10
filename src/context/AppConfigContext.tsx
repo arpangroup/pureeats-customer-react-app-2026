@@ -2,8 +2,9 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { RefreshCw } from 'lucide-react'
 import { appConfigService, DEFAULT_DELIVERY_INSTRUCTION_OPTIONS } from '@/services/appConfigService'
 import { GOOGLE_MAPS_API_KEY } from '@/config/env'
+import { defaultLocationResolutionConfig } from '@/config/locationResolution'
 import { useAuth } from '@/hooks/useAuth'
-import type { AppConfig, ColumnLayout, DeliveryInstructionOption } from '@/types/entities'
+import type { AppConfig, ColumnLayout, DeliveryInstructionOption, LocationSource } from '@/types/entities'
 
 interface AppConfigContextValue {
   config: AppConfig | null
@@ -25,6 +26,10 @@ interface AppConfigContextValue {
   mapProvider: 'OSM' | 'GOOGLE'
   orderStatusUpdateMode: 'POLL' | 'PUSH' | 'BOTH'
   orderStatusPollIntervalMs: number
+  locationResolutionAuthenticatedPriority: LocationSource[]
+  locationResolutionGuestPriority: LocationSource[]
+  locationResolutionAuthenticatedFallbackLabel: string
+  locationResolutionGuestFallbackLabel: string
 }
 
 const DEFAULTS: Omit<AppConfigContextValue, 'config' | 'googleMapsApiKey' | 'enabledPaymentMethods' | 'isLoaded'> = {
@@ -40,6 +45,10 @@ const DEFAULTS: Omit<AppConfigContextValue, 'config' | 'googleMapsApiKey' | 'ena
   mapProvider: 'OSM',
   orderStatusUpdateMode: 'POLL',
   orderStatusPollIntervalMs: 8000,
+  locationResolutionAuthenticatedPriority: defaultLocationResolutionConfig.authenticatedPriority,
+  locationResolutionGuestPriority: defaultLocationResolutionConfig.guestPriority,
+  locationResolutionAuthenticatedFallbackLabel: defaultLocationResolutionConfig.authenticatedFallbackLabel,
+  locationResolutionGuestFallbackLabel: defaultLocationResolutionConfig.guestFallbackLabel,
 }
 
 const AppConfigContext = createContext<AppConfigContextValue>({
@@ -103,6 +112,12 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     mapProvider: config?.mapProvider ?? DEFAULTS.mapProvider,
     orderStatusUpdateMode: config?.orderStatusUpdateMode ?? DEFAULTS.orderStatusUpdateMode,
     orderStatusPollIntervalMs: config?.orderStatusPollIntervalMs || DEFAULTS.orderStatusPollIntervalMs,
+    locationResolutionAuthenticatedPriority: config?.locationResolutionAuthenticatedPriority?.length
+      ? config.locationResolutionAuthenticatedPriority
+      : DEFAULTS.locationResolutionAuthenticatedPriority,
+    locationResolutionGuestPriority: config?.locationResolutionGuestPriority?.length ? config.locationResolutionGuestPriority : DEFAULTS.locationResolutionGuestPriority,
+    locationResolutionAuthenticatedFallbackLabel: config?.locationResolutionAuthenticatedFallbackLabel || DEFAULTS.locationResolutionAuthenticatedFallbackLabel,
+    locationResolutionGuestFallbackLabel: config?.locationResolutionGuestFallbackLabel || DEFAULTS.locationResolutionGuestFallbackLabel,
   }
 
   return (
