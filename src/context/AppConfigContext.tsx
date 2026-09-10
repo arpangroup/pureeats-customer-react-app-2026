@@ -1,9 +1,20 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { appConfigService, DEFAULT_DELIVERY_INSTRUCTION_OPTIONS } from '@/services/appConfigService'
-import { GOOGLE_MAPS_API_KEY } from '@/config/env'
+import { GOOGLE_MAPS_API_KEY, FIREBASE_CONFIG, FIREBASE_VAPID_KEY } from '@/config/env'
+import { defaultLocationResolutionConfig } from '@/config/locationResolution'
 import { useAuth } from '@/hooks/useAuth'
-import type { AppConfig, ColumnLayout, DeliveryInstructionOption } from '@/types/entities'
+import type { AppConfig, ColumnLayout, DeliveryInstructionOption, LocationSource } from '@/types/entities'
+
+export interface FirebaseWebConfig {
+  apiKey: string
+  authDomain: string
+  projectId: string
+  storageBucket: string
+  messagingSenderId: string
+  appId: string
+  vapidKey: string
+}
 
 interface AppConfigContextValue {
   config: AppConfig | null
@@ -17,6 +28,7 @@ interface AppConfigContextValue {
   promoSliderEnabled: boolean
   topPicksEnabled: boolean
   recommendedItemsEnabled: boolean
+  cuisineCategorySectionEnabled: boolean
   restaurantListLayout: ColumnLayout
   recommendedItemsLayout: ColumnLayout
   restaurantItemsLayout: ColumnLayout
@@ -25,28 +37,51 @@ interface AppConfigContextValue {
   mapProvider: 'OSM' | 'GOOGLE'
   orderStatusUpdateMode: 'POLL' | 'PUSH' | 'BOTH'
   orderStatusPollIntervalMs: number
+  locationResolutionAuthenticatedPriority: LocationSource[]
+  locationResolutionGuestPriority: LocationSource[]
+  locationResolutionAuthenticatedFallbackLabel: string
+  locationResolutionGuestFallbackLabel: string
+  /** Null until an admin sets one in Settings → Customer App — CheckoutPage falls back to the trust-based UPI-deep-link flow when this is unset, since there's no gateway to open Checkout against. */
+  razorpayKeyId: string | null
+  /** Backend value per field, falling back to the matching VITE_FIREBASE_* build-time env var — same "admin-configured wins, env var is the pre-launch/local-dev fallback" pattern as googleMapsApiKey. */
+  firebaseConfig: FirebaseWebConfig
+  /** True once every field firebaseMessaging.ts actually needs is present, from either source — mirrors the old env-only HAS_FIREBASE_CONFIG check in src/config/env.ts. */
+  hasFirebaseConfig: boolean
 }
 
-const DEFAULTS: Omit<AppConfigContextValue, 'config' | 'googleMapsApiKey' | 'enabledPaymentMethods' | 'isLoaded'> = {
+const DEFAULTS: Omit<AppConfigContextValue, 'config' | 'googleMapsApiKey' | 'enabledPaymentMethods' | 'isLoaded' | 'razorpayKeyId' | 'firebaseConfig' | 'hasFirebaseConfig'> = {
   audioSearchEnabled: false,
   promoSliderEnabled: true,
   topPicksEnabled: true,
   recommendedItemsEnabled: true,
+  cuisineCategorySectionEnabled: true,
   restaurantListLayout: 'TWO_COLUMN',
   recommendedItemsLayout: 'TWO_COLUMN',
   restaurantItemsLayout: 'TWO_COLUMN',
   deliveryInstructionMode: 'QUICK_OPTIONS',
   deliveryInstructionOptions: DEFAULT_DELIVERY_INSTRUCTION_OPTIONS,
   mapProvider: 'OSM',
-  orderStatusUpdateMode: 'POLL',
+  // Backend default flipped to PUSH too (see AppConfigService#defaults) — polling is now the
+  // fallback (useOrderStatusUpdates backs it off to a slow safety-net interval in PUSH mode),
+  // not the primary mechanism.
+  orderStatusUpdateMode: 'PUSH',
   orderStatusPollIntervalMs: 8000,
+  locationResolutionAuthenticatedPriority: defaultLocationResolutionConfig.authenticatedPriority,
+  locationResolutionGuestPriority: defaultLocationResolutionConfig.guestPriority,
+  locationResolutionAuthenticatedFallbackLabel: defaultLocationResolutionConfig.authenticatedFallbackLabel,
+  locationResolutionGuestFallbackLabel: defaultLocationResolutionConfig.guestFallbackLabel,
 }
+
+const ENV_FIREBASE_CONFIG: FirebaseWebConfig = { ...FIREBASE_CONFIG, vapidKey: FIREBASE_VAPID_KEY }
 
 const AppConfigContext = createContext<AppConfigContextValue>({
   config: null,
   googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   enabledPaymentMethods: [],
   isLoaded: false,
+  razorpayKeyId: null,
+  firebaseConfig: ENV_FIREBASE_CONFIG,
+  hasFirebaseConfig: !!(ENV_FIREBASE_CONFIG.apiKey && ENV_FIREBASE_CONFIG.projectId && ENV_FIREBASE_CONFIG.appId && ENV_FIREBASE_CONFIG.vapidKey),
   ...DEFAULTS,
 })
 
@@ -86,7 +121,20 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     window.location.reload()
   }
 
+  const firebaseConfig: FirebaseWebConfig = {
+    apiKey: config?.firebaseApiKey || FIREBASE_CONFIG.apiKey,
+    authDomain: config?.firebaseAuthDomain || FIREBASE_CONFIG.authDomain,
+    projectId: config?.firebaseProjectId || FIREBASE_CONFIG.projectId,
+    storageBucket: config?.firebaseStorageBucket || FIREBASE_CONFIG.storageBucket,
+    messagingSenderId: config?.firebaseMessagingSenderId || FIREBASE_CONFIG.messagingSenderId,
+    appId: config?.firebaseAppId || FIREBASE_CONFIG.appId,
+    vapidKey: config?.firebaseVapidKey || FIREBASE_VAPID_KEY,
+  }
+
   const value: AppConfigContextValue = {
+    razorpayKeyId: config?.razorpayKeyId || null,
+    firebaseConfig,
+    hasFirebaseConfig: !!(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId && firebaseConfig.vapidKey),
     config,
     googleMapsApiKey: config?.googleMapsApiKey || GOOGLE_MAPS_API_KEY,
     enabledPaymentMethods: config?.enabledPaymentMethods ?? [],
@@ -95,6 +143,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     promoSliderEnabled: config?.promoSliderEnabled ?? DEFAULTS.promoSliderEnabled,
     topPicksEnabled: config?.topPicksEnabled ?? DEFAULTS.topPicksEnabled,
     recommendedItemsEnabled: config?.recommendedItemsEnabled ?? DEFAULTS.recommendedItemsEnabled,
+    cuisineCategorySectionEnabled: config?.cuisineCategorySectionEnabled ?? DEFAULTS.cuisineCategorySectionEnabled,
     restaurantListLayout: config?.restaurantListLayout ?? DEFAULTS.restaurantListLayout,
     recommendedItemsLayout: config?.recommendedItemsLayout ?? DEFAULTS.recommendedItemsLayout,
     restaurantItemsLayout: config?.restaurantItemsLayout ?? DEFAULTS.restaurantItemsLayout,
@@ -103,6 +152,12 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     mapProvider: config?.mapProvider ?? DEFAULTS.mapProvider,
     orderStatusUpdateMode: config?.orderStatusUpdateMode ?? DEFAULTS.orderStatusUpdateMode,
     orderStatusPollIntervalMs: config?.orderStatusPollIntervalMs || DEFAULTS.orderStatusPollIntervalMs,
+    locationResolutionAuthenticatedPriority: config?.locationResolutionAuthenticatedPriority?.length
+      ? config.locationResolutionAuthenticatedPriority
+      : DEFAULTS.locationResolutionAuthenticatedPriority,
+    locationResolutionGuestPriority: config?.locationResolutionGuestPriority?.length ? config.locationResolutionGuestPriority : DEFAULTS.locationResolutionGuestPriority,
+    locationResolutionAuthenticatedFallbackLabel: config?.locationResolutionAuthenticatedFallbackLabel || DEFAULTS.locationResolutionAuthenticatedFallbackLabel,
+    locationResolutionGuestFallbackLabel: config?.locationResolutionGuestFallbackLabel || DEFAULTS.locationResolutionGuestFallbackLabel,
   }
 
   return (

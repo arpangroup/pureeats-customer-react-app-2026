@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Active-address resolution — flow diagram</title>
+<style>
+  :root {
+    --bg: #f8fafc;
+    --panel: #ffffff;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-dim: #64748b;
+    --brand: #ea580c;
+    --brand-bg: #fff7ed;
+    --code-bg: #f1f5f9;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --border: #334155;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --brand: #fb923c;
+      --brand-bg: #431407;
+      --code-bg: #0f172a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 0.25rem; }
+  .subtitle { color: var(--text-dim); font-size: 0.95rem; margin: 0 0 2.5rem; }
+  h2 { font-size: 1.15rem; margin: 3rem 0 1rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+  h2:first-of-type { border-top: none; padding-top: 0; margin-top: 2rem; }
+  p { color: var(--text); }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+  }
+  .mermaid { display: flex; justify-content: center; }
+  code, pre {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+  }
+  code {
+    background: var(--code-bg);
+    padding: 0.1rem 0.4rem;
+    border-radius: 5px;
+  }
+  pre {
+    background: var(--code-bg);
+    padding: 1rem 1.1rem;
+    border-radius: 10px;
+    overflow-x: auto;
+    margin: 0;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--text-dim); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.02em; }
+  .badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    background: var(--brand-bg);
+    color: var(--brand);
+    margin-left: 0.4rem;
+  }
+  .note {
+    border-left: 3px solid var(--brand);
+    background: var(--brand-bg);
+    padding: 0.85rem 1.1rem;
+    border-radius: 0 10px 10px 0;
+    font-size: 0.9rem;
+    margin: 1rem 0;
+  }
+  .note strong { color: var(--brand); }
+  a { color: var(--brand); }
+  .legend { display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--text-dim); margin-top: 0.75rem; }
+  .legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Active-address resolution</h1>
+  <p class="subtitle">How PureEats picks what to show as the customer's delivery location, and how every step of that is backend-configurable. Companion to <code>docs/location-resolution/README.md</code> — this page is just the two flows as pictures, with the config/API reference alongside.</p>
+
+  <h2>1 · Detection — which sources get a value at all</h2>
+  <div class="panel">
+    <pre class="mermaid" id="diagram-detection">
+flowchart TD
+    A["App boot\n(LocationAutoDetectBootstrap)"] --> B{"AppConfig loaded?"}
+    B -->|"not yet"| C["Use local\ndefaultLocationResolutionConfig"]
+    B -->|"yes"| D["Use backend\nlocationResolution*Priority"]
+    C --> E{"isAuthenticated?"}
+    D --> E
+    E -->|"yes"| F["priority = AuthenticatedPriority\nfallback = AuthenticatedFallbackLabel"]
+    E -->|"no"| G["priority = GuestPriority\nfallback = GuestFallbackLabel"]
+    F --> H{"'gps' or 'ip'\nin priority?"}
+    G --> H
+    H -->|"neither"| Z["Nothing to auto-detect\n(only 'saved' can show)"]
+    H -->|"'gps' present"| I{"navigator.permissions\n.query('geolocation')"}
+    I -->|"granted"| J["getCurrentPosition()"]
+    J --> K["GET /geo/reverse-geocode\n(Nominatim proxy, cached)"]
+    K --> L["detectedLocations.gps = label"]
+    I -->|"denied"| M["Show dialog:\nOS/browser settings steps"]
+    I -->|"prompt"| N["Show dialog:\n'Allow location access'"]
+    I -->|"unsupported"| O
+    M --> O["GET /geo/ip-location\n(ip-api.com proxy, cached)"]
+    N --> O
+    H -->|"only 'ip' present"| O
+    O --> P["detectedLocations.ip = label"]
+    </pre>
+  </div>
+  <div class="legend">
+    <span><span class="dot" style="background:#ea580c"></span> decision point</span>
+    <span><span class="dot" style="background:#0ea5e9"></span> network call (backend-proxied, cached)</span>
+    <span><span class="dot" style="background:#16a34a"></span> resolved value written to context</span>
+  </div>
+
+  <h2>2 · Display — which resolved value actually shows</h2>
+  <div class="panel">
+    <pre class="mermaid" id="diagram-display">
+flowchart TD
+    A["resolveActiveLocationLabel()"] --> B{"'saved' next in\npriority list AND\nactiveAddress set?"}
+    B -->|"yes"| C["Show saved address's tag\n(e.g. 'Home')"]
+    B -->|"no"| D{"'gps' next AND\ndetectedLocations.gps set?"}
+    D -->|"yes"| E["Show GPS-resolved address"]
+    D -->|"no"| F{"'ip' next AND\ndetectedLocations.ip set?"}
+    F -->|"yes"| G["Show 'Near &lt;city&gt;'\nor IP-resolved address"]
+    F -->|"no, list exhausted"| H["Show fallbackLabel\n('Other' / 'Set your location')"]
+    </pre>
+  </div>
+  <p style="font-size:0.87rem;color:var(--text-dim)">Same function, evaluated fresh on every render — as sources resolve asynchronously (GPS/IP calls take time), the label upgrades itself automatically without any extra "refresh" step.</p>
+
+  <h2>Config — backend-editable, frontend-defaulted</h2>
+  <p>Four fields inside the existing <code>AppConfig</code> blob (<code>GET /api/v1/app-config</code>, editable via <code>PUT /api/v1/admin/app-config</code>):</p>
+  <div class="panel">
+<pre>{
+  "locationResolutionAuthenticatedPriority": ["saved", "gps", "ip"],
+  "locationResolutionGuestPriority": ["gps", "ip"],
+  "locationResolutionAuthenticatedFallbackLabel": "Set your location",
+  "locationResolutionGuestFallbackLabel": "Other"
+}</pre>
+  </div>
+  <div class="note"><strong>Frontend fallback:</strong> <code>src/config/locationResolution.ts</code>'s <code>defaultLocationResolutionConfig</code> mirrors these exact defaults — used until <code>/app-config</code> resolves, and per-field for any older backend missing one of them.</div>
+
+  <h2>API reference</h2>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Endpoint</th><th>Auth</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET /api/v1/app-config</code></td><td>Public</td><td>The priority/fallback config above, alongside every other feature flag</td></tr>
+        <tr><td><code>PUT /api/v1/admin/app-config</code></td><td>Admin</td><td>Edits it</td></tr>
+        <tr><td><code>GET /api/v1/geo/ip-location</code></td><td>Public</td><td>IP → coarse <code>{latitude, longitude, city, country}</code>, ip-api.com proxy, cached server-side</td></tr>
+        <tr><td><code>GET /api/v1/geo/reverse-geocode?lat=&amp;lon=</code></td><td>Public</td><td>Coordinates → <code>{displayName, city, state, country, postcode}</code>, Nominatim proxy, cached server-side</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Design decisions <span class="badge">summary</span></h2>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Question</th><th>Decision</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Reverse geocode: frontend calls Nominatim directly, or via backend?</td><td>Backend proxy — required <code>User-Agent</code> header, dodges ad-blocker interference, enables shared server-side caching, provider swap without a frontend deploy.</td><td>Implemented</td></tr>
+        <tr><td>Resolve location at app load, or wait for Home page mount?</td><td>App load — mounted in <code>App.tsx</code>, not <code>HomePage</code>, so the header pill is more likely already correct on first paint.</td><td>Implemented</td></tr>
+        <tr><td>Should restaurant listing require lat/lon, or fall back to backend IP resolution?</td><td>Hybrid recommended: accept optional <code>lat</code>/<code>lon</code> query params, backend resolves IP itself when absent (reusing <code>IpGeolocationService</code>) rather than erroring or returning unsorted.</td><td>Recommended only — see README</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="font-size:0.85rem;color:var(--text-dim);margin-top:3rem">Full write-up, rationale, and the out-of-scope list: <a href="README.md">README.md</a> in this same folder.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
+    themeVariables: { fontSize: '13px' },
+    flowchart: { curve: 'basis' },
+  })
+</script>
+</body>
+</html>

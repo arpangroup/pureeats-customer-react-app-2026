@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/apiClient'
 import { APP_VERSION, IS_MOCK } from '@/config/env'
+import { defaultLocationResolutionConfig } from '@/config/locationResolution'
 import type { AppConfig, DeliveryInstructionOption } from '@/types/entities'
 
 /** Mirrors AppConfigService.defaultDeliveryInstructionOptions() on the backend — keep the two in sync. */
@@ -22,14 +23,27 @@ const NO_UPDATE: AppConfig = {
   promoSliderEnabled: true,
   topPicksEnabled: true,
   recommendedItemsEnabled: true,
+  cuisineCategorySectionEnabled: true,
   restaurantListLayout: 'TWO_COLUMN',
   recommendedItemsLayout: 'TWO_COLUMN',
   restaurantItemsLayout: 'TWO_COLUMN',
   deliveryInstructionMode: 'QUICK_OPTIONS',
   deliveryInstructionOptions: DEFAULT_DELIVERY_INSTRUCTION_OPTIONS,
   mapProvider: 'OSM',
-  orderStatusUpdateMode: 'POLL',
+  orderStatusUpdateMode: 'PUSH',
   orderStatusPollIntervalMs: 8000,
+  locationResolutionAuthenticatedPriority: defaultLocationResolutionConfig.authenticatedPriority,
+  locationResolutionGuestPriority: defaultLocationResolutionConfig.guestPriority,
+  locationResolutionAuthenticatedFallbackLabel: defaultLocationResolutionConfig.authenticatedFallbackLabel,
+  locationResolutionGuestFallbackLabel: defaultLocationResolutionConfig.guestFallbackLabel,
+  razorpayKeyId: null,
+  firebaseApiKey: null,
+  firebaseAuthDomain: null,
+  firebaseProjectId: null,
+  firebaseStorageBucket: null,
+  firebaseMessagingSenderId: null,
+  firebaseAppId: null,
+  firebaseVapidKey: null,
 }
 
 export const appConfigService = {

@@ -286,6 +286,9 @@ export interface OrderSummary {
 
 export type AppUpdateSeverity = 'NONE' | 'SOFT' | 'HARD'
 
+/** Where the "active address" shown on the home page can come from — see src/config/locationResolution.ts and src/lib/locationResolution.ts for how AppConfig's priority lists are interpreted. */
+export type LocationSource = 'saved' | 'gps' | 'ip'
+
 export type ColumnLayout = 'ONE_COLUMN' | 'TWO_COLUMN'
 export type DeliveryInstructionMode = 'TEXT' | 'QUICK_OPTIONS'
 export type MapProvider = 'OSM' | 'GOOGLE'
@@ -310,6 +313,7 @@ export interface AppConfig {
   promoSliderEnabled: boolean
   topPicksEnabled: boolean
   recommendedItemsEnabled: boolean
+  cuisineCategorySectionEnabled: boolean
   restaurantListLayout: ColumnLayout
   recommendedItemsLayout: ColumnLayout
   restaurantItemsLayout: ColumnLayout
@@ -318,6 +322,21 @@ export interface AppConfig {
   mapProvider: MapProvider
   orderStatusUpdateMode: OrderStatusUpdateMode
   orderStatusPollIntervalMs: number
+  /** Ordered "saved" | "gps" | "ip" priority for the home page's active-address label — see src/config/locationResolution.ts and src/lib/locationResolution.ts for how this is interpreted. */
+  locationResolutionAuthenticatedPriority: LocationSource[]
+  locationResolutionGuestPriority: LocationSource[]
+  locationResolutionAuthenticatedFallbackLabel: string
+  locationResolutionGuestFallbackLabel: string
+  /** Public Razorpay Key ID (never the secret — that never leaves the backend) — null until an admin sets one in Settings → Customer App. */
+  razorpayKeyId: string | null
+  /** Firebase web config for push notifications — see src/lib/firebaseMessaging.ts. Each field falls back to the matching VITE_FIREBASE_* build-time env var (src/config/env.ts) until an admin sets these. */
+  firebaseApiKey: string | null
+  firebaseAuthDomain: string | null
+  firebaseProjectId: string | null
+  firebaseStorageBucket: string | null
+  firebaseMessagingSenderId: string | null
+  firebaseAppId: string | null
+  firebaseVapidKey: string | null
 }
 
 export interface WalletTransaction {

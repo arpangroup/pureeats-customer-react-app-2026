@@ -2,19 +2,30 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bike, ChevronRight } from 'lucide-react'
 import { useAsync } from '@/hooks/useAsync'
+import { useAppConfig } from '@/context/AppConfigContext'
 import { useAuth } from '@/hooks/useAuth'
 import { useCart } from '@/hooks/useCart'
+import { onForegroundMessage } from '@/lib/firebaseMessaging'
 import { orderService } from '@/services/orderService'
 import { orderStatusLabel, ACTIVE_STATUSES } from '@/lib/orderStatus'
 import { classNames } from '@/lib/format'
 
 const POLL_INTERVAL_MS = 15000
 
-/** Sticky bottom banner on the Home page when the user has an order in flight — offsets above the cart bar/tab bar so both can be visible at once without overlapping. Polls so the status label ("Driver assigned", "John picked up your order"…) reflects the backend without a manual refresh. */
+/**
+ * Sticky bottom banner on the Home page when the user has an order in flight — offsets above the
+ * cart bar/tab bar so both can be visible at once without overlapping. Reflects the backend
+ * without a manual refresh two ways: a slow 15s visibility-gated poll as the always-on baseline,
+ * and (when Firebase is configured) an immediate reload the moment a push arrives for this
+ * customer — usually seconds ahead of the next poll tick. See usePushNotifications for the
+ * app-wide token registration this rides on; this is just its own additional onMessage
+ * subscription, same pattern as useOrderStatusUpdates on the tracking page itself.
+ */
 export function OngoingOrderBar() {
   const { user } = useAuth()
   const { itemCount } = useCart()
   const navigate = useNavigate()
+  const { firebaseConfig, hasFirebaseConfig } = useAppConfig()
   const { data: orders, reload } = useAsync(() => (user ? orderService.listMine(user.id) : Promise.resolve([])), [user?.id])
 
   useEffect(() => {
@@ -24,6 +35,12 @@ export function OngoingOrderBar() {
     }, POLL_INTERVAL_MS)
     return () => clearInterval(timer)
   }, [user, reload])
+
+  useEffect(() => {
+    if (!user || !hasFirebaseConfig) return
+    return onForegroundMessage(firebaseConfig, () => reload())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, hasFirebaseConfig])
 
   const activeOrder = orders?.find((o) => ACTIVE_STATUSES.includes(o.status))
   if (!activeOrder) return null
