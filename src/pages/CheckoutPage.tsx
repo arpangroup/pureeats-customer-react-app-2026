@@ -10,9 +10,11 @@ import { useAuth } from '@/hooks/useAuth'
 import { useActiveLocation } from '@/hooks/useLocation'
 import { useAsync } from '@/hooks/useAsync'
 import { restaurantService } from '@/services/restaurantService'
-import { orderService } from '@/services/orderService'
+import { orderService, type PlaceOrderInput } from '@/services/orderService'
 import { walletService } from '@/services/walletService'
+import { paymentService } from '@/services/paymentService'
 import { buildUpiLaunchUrl, isMobileDevice } from '@/lib/upi'
+import { loadRazorpayCheckoutScript, openRazorpayCheckout, type RazorpayPaymentResult } from '@/lib/razorpay'
 import { useAppConfig } from '@/context/AppConfigContext'
 import type { PaymentMode } from '@/types/entities'
 
@@ -49,7 +51,8 @@ export default function CheckoutPage() {
 
   const { data: restaurant } = useAsync(() => (cart.restaurantId ? restaurantService.get(cart.restaurantId) : Promise.resolve(undefined)), [cart.restaurantId])
   const { data: walletBalance } = useAsync(() => (user ? walletService.balance(user.id) : Promise.resolve(0)), [user?.id])
-  const { enabledPaymentMethods } = useAppConfig()
+  const { enabledPaymentMethods, razorpayKeyId } = useAppConfig()
+  const razorpayConfigured = !!razorpayKeyId
   // Empty list means the admin hasn't restricted anything — show every option, same as before this existed.
   const paymentOptions = (enabledPaymentMethods.length === 0
     ? PAYMENT_OPTIONS
@@ -102,10 +105,15 @@ export default function CheckoutPage() {
 
   const pricing = estimateOrderPricing(cart.subtotal, restaurant, cart.deliveryType, cart.coupon, cart.tipAmount)
   const walletInsufficient = paymentMode === 'WALLET' && (walletBalance ?? 0) < pricing.payable
-  const upiOnMobile = paymentMode === 'UPI' && isMobileDevice()
+  // Razorpay's Checkout widget IS a real UPI-capable gateway (plus cards/netbanking/wallets) — once
+  // an admin has configured a key, "UPI" opens that instead of the trust-based deep link below, on
+  // every device (the widget works on desktop too, unlike a upi:// intent).
+  const useRazorpayCheckout = paymentMode === 'UPI' && razorpayConfigured
+  const upiOnMobile = paymentMode === 'UPI' && !razorpayConfigured && isMobileDevice()
 
   /** No payment gateway backs this — same trust model as Cash on Delivery. Opening the UPI app is
-   * real (a genuine upi://pay intent), but "did they actually pay" is the user's own confirmation. */
+   * real (a genuine upi://pay intent), but "did they actually pay" is the user's own confirmation.
+   * Only reached when Razorpay isn't configured — see useRazorpayCheckout above. */
   function handleOpenUpiApp() {
     const url = buildUpiLaunchUrl({
       amountInRupees: pricing.payable,
@@ -122,7 +130,7 @@ export default function CheckoutPage() {
     }, 1500)
   }
 
-  async function handlePlaceOrder() {
+  async function submitOrder(razorpayPayment?: RazorpayPaymentResult) {
     if (!user || !cart.restaurantId) return
     setPlacing(true)
     setError(null)
@@ -137,12 +145,44 @@ export default function CheckoutPage() {
         coupon: cart.coupon,
         orderComment: buildOrderComment(cart.cookingNote, cart.deliveryInstructions),
         driverTipAmount: needsAddress ? cart.tipAmount : 0,
-      })
+        razorpayOrderId: razorpayPayment?.razorpayOrderId,
+        razorpayPaymentId: razorpayPayment?.razorpayPaymentId,
+        razorpaySignature: razorpayPayment?.razorpaySignature,
+      } satisfies PlaceOrderInput)
       cart.clearCart()
       navigate(`/orders/${order.id}/confirmation`, { replace: true })
     } catch (err) {
       setError((err as { message?: string })?.message ?? 'Could not place your order. Please try again.')
     } finally {
+      setPlacing(false)
+    }
+  }
+
+  const handlePlaceOrder = () => submitOrder()
+
+  /** Creates the Razorpay order server-side, opens Checkout, and only calls submitOrder() once the
+   * customer has actually completed payment — OrderService independently re-verifies the signature
+   * and the amount actually captured before persisting anything (see the backend's OrderService). */
+  async function handleRazorpayCheckout() {
+    if (!user || !cart.restaurantId) return
+    setPlacing(true)
+    setError(null)
+    try {
+      const orderInfo = await paymentService.createRazorpayOrder(pricing.payable)
+      await loadRazorpayCheckoutScript()
+      const result = await openRazorpayCheckout({
+        key: orderInfo.keyId,
+        orderId: orderInfo.razorpayOrderId,
+        amountPaise: orderInfo.amountPaise,
+        currency: orderInfo.currency,
+        name: 'PureEats',
+        description: restaurant?.name ? `Order from ${restaurant.name}` : undefined,
+        prefill: { name: user.name, email: user.email, contact: user.phone },
+        themeColor: '#ea580c',
+      })
+      await submitOrder(result)
+    } catch (err) {
+      setError((err as { message?: string })?.message ?? 'Payment was not completed.')
       setPlacing(false)
     }
   }
@@ -181,7 +221,7 @@ export default function CheckoutPage() {
             ))}
           </div>
           {walletInsufficient && <p className="mt-2 text-xs text-rose-500">Insufficient wallet balance for this order.</p>}
-          {paymentMode === 'UPI' && !isMobileDevice() && (
+          {paymentMode === 'UPI' && !razorpayConfigured && !isMobileDevice() && (
             <p className="mt-2 text-xs text-slate-400">Open checkout on your phone to pay directly from a UPI app — on desktop, order confirmation still goes through.</p>
           )}
         </div>
@@ -220,9 +260,15 @@ export default function CheckoutPage() {
           <button
             className="btn-primary mt-4 w-full"
             disabled={placing || walletInsufficient}
-            onClick={upiOnMobile ? handleOpenUpiApp : handlePlaceOrder}
+            onClick={useRazorpayCheckout ? handleRazorpayCheckout : upiOnMobile ? handleOpenUpiApp : handlePlaceOrder}
           >
-            {placing ? 'Placing order…' : upiOnMobile ? `Pay ${formatCurrency(pricing.payable)} via UPI` : `Place order · ${formatCurrency(pricing.payable)}`}
+            {placing
+              ? 'Placing order…'
+              : useRazorpayCheckout
+                ? `Pay ${formatCurrency(pricing.payable)}`
+                : upiOnMobile
+                  ? `Pay ${formatCurrency(pricing.payable)} via UPI`
+                  : `Place order · ${formatCurrency(pricing.payable)}`}
           </button>
         )}
       </div>

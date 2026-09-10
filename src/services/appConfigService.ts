@@ -35,6 +35,14 @@ const NO_UPDATE: AppConfig = {
   locationResolutionGuestPriority: defaultLocationResolutionConfig.guestPriority,
   locationResolutionAuthenticatedFallbackLabel: defaultLocationResolutionConfig.authenticatedFallbackLabel,
   locationResolutionGuestFallbackLabel: defaultLocationResolutionConfig.guestFallbackLabel,
+  razorpayKeyId: null,
+  firebaseApiKey: null,
+  firebaseAuthDomain: null,
+  firebaseProjectId: null,
+  firebaseStorageBucket: null,
+  firebaseMessagingSenderId: null,
+  firebaseAppId: null,
+  firebaseVapidKey: null,
 }
 
 export const appConfigService = {

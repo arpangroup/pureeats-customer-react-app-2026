@@ -17,6 +17,10 @@ export interface PlaceOrderInput {
   coupon: { code: string; discountAmount: number; waivesDelivery: boolean } | null
   orderComment: string | null
   driverTipAmount: number
+  /** Only set (and only checked server-side) when paymentMode maps to RAZORPAY — the three values Razorpay Checkout's success handler returns. See paymentService.ts and CheckoutPage's Razorpay flow. */
+  razorpayOrderId?: string
+  razorpayPaymentId?: string
+  razorpaySignature?: string
 }
 
 /** Every status a legal next transition can lead to — mirrors the backend's OrderTransitionService state machine. */
@@ -173,6 +177,9 @@ export const orderService = {
       couponCode: input.coupon?.code ?? null,
       orderComment: input.orderComment,
       driverTipAmount: input.driverTipAmount,
+      razorpayOrderId: input.razorpayOrderId ?? null,
+      razorpayPaymentId: input.razorpayPaymentId ?? null,
+      razorpaySignature: input.razorpaySignature ?? null,
     })
     return mapLiveOrder(data.data)
   },

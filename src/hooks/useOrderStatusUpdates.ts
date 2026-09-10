@@ -22,8 +22,8 @@ export function useOrderStatusUpdates<T extends { status: string } | undefined>(
   statusLoader: () => Promise<{ status: string; updatedAt: string } | undefined>,
   deps: unknown[],
 ) {
-  const { orderStatusUpdateMode, orderStatusPollIntervalMs } = useAppConfig()
-  const wantsPush = orderStatusUpdateMode === 'PUSH' || orderStatusUpdateMode === 'BOTH'
+  const { orderStatusUpdateMode, orderStatusPollIntervalMs, firebaseConfig, hasFirebaseConfig } = useAppConfig()
+  const wantsPush = hasFirebaseConfig && (orderStatusUpdateMode === 'PUSH' || orderStatusUpdateMode === 'BOTH')
   const intervalMs = orderStatusUpdateMode === 'PUSH' ? orderStatusPollIntervalMs * 6 : orderStatusPollIntervalMs
 
   const tracking = useOrderTracking(fullLoader, statusLoader, deps, intervalMs)
@@ -33,15 +33,16 @@ export function useOrderStatusUpdates<T extends { status: string } | undefined>(
   useEffect(() => {
     if (!wantsPush) return
     let cancelled = false
-    requestPushToken().then((token) => {
+    requestPushToken(firebaseConfig).then((token) => {
       if (cancelled || !token) return
       notificationService.registerPushToken(token).catch(() => undefined)
     })
-    const unsubscribe = onForegroundMessage(() => reloadRef.current())
+    const unsubscribe = onForegroundMessage(firebaseConfig, () => reloadRef.current())
     return () => {
       cancelled = true
       unsubscribe()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wantsPush])
 
   return tracking

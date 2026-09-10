@@ -1,10 +1,20 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { appConfigService, DEFAULT_DELIVERY_INSTRUCTION_OPTIONS } from '@/services/appConfigService'
-import { GOOGLE_MAPS_API_KEY } from '@/config/env'
+import { GOOGLE_MAPS_API_KEY, FIREBASE_CONFIG, FIREBASE_VAPID_KEY } from '@/config/env'
 import { defaultLocationResolutionConfig } from '@/config/locationResolution'
 import { useAuth } from '@/hooks/useAuth'
 import type { AppConfig, ColumnLayout, DeliveryInstructionOption, LocationSource } from '@/types/entities'
+
+export interface FirebaseWebConfig {
+  apiKey: string
+  authDomain: string
+  projectId: string
+  storageBucket: string
+  messagingSenderId: string
+  appId: string
+  vapidKey: string
+}
 
 interface AppConfigContextValue {
   config: AppConfig | null
@@ -30,9 +40,15 @@ interface AppConfigContextValue {
   locationResolutionGuestPriority: LocationSource[]
   locationResolutionAuthenticatedFallbackLabel: string
   locationResolutionGuestFallbackLabel: string
+  /** Null until an admin sets one in Settings → Customer App — CheckoutPage falls back to the trust-based UPI-deep-link flow when this is unset, since there's no gateway to open Checkout against. */
+  razorpayKeyId: string | null
+  /** Backend value per field, falling back to the matching VITE_FIREBASE_* build-time env var — same "admin-configured wins, env var is the pre-launch/local-dev fallback" pattern as googleMapsApiKey. */
+  firebaseConfig: FirebaseWebConfig
+  /** True once every field firebaseMessaging.ts actually needs is present, from either source — mirrors the old env-only HAS_FIREBASE_CONFIG check in src/config/env.ts. */
+  hasFirebaseConfig: boolean
 }
 
-const DEFAULTS: Omit<AppConfigContextValue, 'config' | 'googleMapsApiKey' | 'enabledPaymentMethods' | 'isLoaded'> = {
+const DEFAULTS: Omit<AppConfigContextValue, 'config' | 'googleMapsApiKey' | 'enabledPaymentMethods' | 'isLoaded' | 'razorpayKeyId' | 'firebaseConfig' | 'hasFirebaseConfig'> = {
   audioSearchEnabled: false,
   promoSliderEnabled: true,
   topPicksEnabled: true,
@@ -51,11 +67,16 @@ const DEFAULTS: Omit<AppConfigContextValue, 'config' | 'googleMapsApiKey' | 'ena
   locationResolutionGuestFallbackLabel: defaultLocationResolutionConfig.guestFallbackLabel,
 }
 
+const ENV_FIREBASE_CONFIG: FirebaseWebConfig = { ...FIREBASE_CONFIG, vapidKey: FIREBASE_VAPID_KEY }
+
 const AppConfigContext = createContext<AppConfigContextValue>({
   config: null,
   googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   enabledPaymentMethods: [],
   isLoaded: false,
+  razorpayKeyId: null,
+  firebaseConfig: ENV_FIREBASE_CONFIG,
+  hasFirebaseConfig: !!(ENV_FIREBASE_CONFIG.apiKey && ENV_FIREBASE_CONFIG.projectId && ENV_FIREBASE_CONFIG.appId && ENV_FIREBASE_CONFIG.vapidKey),
   ...DEFAULTS,
 })
 
@@ -95,7 +116,20 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     window.location.reload()
   }
 
+  const firebaseConfig: FirebaseWebConfig = {
+    apiKey: config?.firebaseApiKey || FIREBASE_CONFIG.apiKey,
+    authDomain: config?.firebaseAuthDomain || FIREBASE_CONFIG.authDomain,
+    projectId: config?.firebaseProjectId || FIREBASE_CONFIG.projectId,
+    storageBucket: config?.firebaseStorageBucket || FIREBASE_CONFIG.storageBucket,
+    messagingSenderId: config?.firebaseMessagingSenderId || FIREBASE_CONFIG.messagingSenderId,
+    appId: config?.firebaseAppId || FIREBASE_CONFIG.appId,
+    vapidKey: config?.firebaseVapidKey || FIREBASE_VAPID_KEY,
+  }
+
   const value: AppConfigContextValue = {
+    razorpayKeyId: config?.razorpayKeyId || null,
+    firebaseConfig,
+    hasFirebaseConfig: !!(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId && firebaseConfig.vapidKey),
     config,
     googleMapsApiKey: config?.googleMapsApiKey || GOOGLE_MAPS_API_KEY,
     enabledPaymentMethods: config?.enabledPaymentMethods ?? [],

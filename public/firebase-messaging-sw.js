@@ -1,27 +1,54 @@
 // Firebase Cloud Messaging background handler — receives push notifications (order status
 // updates, promotions/offers) while the app isn't in the foreground tab.
 //
-// Inert placeholder until a real Firebase project exists: a service worker is a plain static
-// file, not part of Vite's build, so it can't read VITE_FIREBASE_* from .env.local the way the
-// rest of the app does (see src/config/env.ts, src/lib/firebaseMessaging.ts) — mirror the same
-// values here when you set those up. Until then this file loads but never receives anything,
-// since firebaseMessaging.ts never registers a token without that config.
+// A service worker is a plain static file, not part of Vite's build, so it can't read the
+// backend-configured Firebase values (Settings → Push Notifications in the admin panel) the rest
+// of this app uses at runtime — these are mirrored here by hand from that same project. If you
+// rotate the Firebase project/config, update both there and here.
 importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js')
 
 firebase.initializeApp({
-  apiKey: '',
-  authDomain: '',
-  projectId: '',
-  storageBucket: '',
-  messagingSenderId: '',
-  appId: '',
+  apiKey: 'AIzaSyDJo1GviFj-lZtA7ig9yn918vdIMJnqBKI',
+  authDomain: 'pureeatsnotification.firebaseapp.com',
+  projectId: 'pureeatsnotification',
+  storageBucket: 'pureeatsnotification.firebasestorage.app',
+  messagingSenderId: '97657025376',
+  appId: '1:97657025376:web:6fefe3c9b3facd9f55a405',
 })
 
 const messaging = firebase.messaging()
 
+// A custom onBackgroundMessage handler bypasses the browser's own default push rendering, so
+// nothing here is auto-populated from the server's webpush notification config (image/actions/
+// click link) — FcmSender mirrors those into the plain `data` payload specifically so this handler
+// can reconstruct them (see FcmSender#buildDataPayload on the backend). `actions` arrives as a
+// JSON string since FCM data values must be strings.
 messaging.onBackgroundMessage((payload) => {
   const title = payload.notification?.title || payload.data?.title || 'PureEats'
   const body = payload.notification?.body || payload.data?.body || ''
-  self.registration.showNotification(title, { body, icon: '/pwa-icons/icon-192.png' })
+  const image = payload.notification?.image || payload.data?.image
+  const clickAction = payload.fcmOptions?.link || payload.data?.click_action
+  let actions
+  try {
+    actions = payload.data?.actions ? JSON.parse(payload.data.actions) : undefined
+  } catch {
+    actions = undefined
+  }
+  self.registration.showNotification(title, {
+    body,
+    icon: '/pwa-icons/icon-192.png',
+    image,
+    actions,
+    data: { clickAction },
+  })
+})
+
+// Chrome/Edge-only actions (see FcmAction on the backend) land here as `event.action` (the button's
+// own `action` id); clicking the notification body itself (no button) is an empty string.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = event.notification.data?.clickAction
+  if (!url) return
+  event.waitUntil(self.clients.openWindow(url))
 })

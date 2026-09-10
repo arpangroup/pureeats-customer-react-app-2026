@@ -326,6 +326,16 @@ export interface AppConfig {
   locationResolutionGuestPriority: LocationSource[]
   locationResolutionAuthenticatedFallbackLabel: string
   locationResolutionGuestFallbackLabel: string
+  /** Public Razorpay Key ID (never the secret — that never leaves the backend) — null until an admin sets one in Settings → Customer App. */
+  razorpayKeyId: string | null
+  /** Firebase web config for push notifications — see src/lib/firebaseMessaging.ts. Each field falls back to the matching VITE_FIREBASE_* build-time env var (src/config/env.ts) until an admin sets these. */
+  firebaseApiKey: string | null
+  firebaseAuthDomain: string | null
+  firebaseProjectId: string | null
+  firebaseStorageBucket: string | null
+  firebaseMessagingSenderId: string | null
+  firebaseAppId: string | null
+  firebaseVapidKey: string | null
 }
 
 export interface WalletTransaction {
