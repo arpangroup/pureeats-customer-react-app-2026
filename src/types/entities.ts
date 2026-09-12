@@ -81,6 +81,9 @@ export interface Restaurant {
   closingTime: string
   categoryIds: number[]
   openStatus?: RestaurantOpenStatus
+  /** Admin/store-owner-set promo badge — independent of any Coupon. Both unset/null means no badge renders. */
+  offerDiscountPercent?: number | null
+  offerMaxDiscount?: number | null
 }
 
 export interface ItemCategory {
