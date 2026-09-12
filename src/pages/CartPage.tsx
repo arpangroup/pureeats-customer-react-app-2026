@@ -241,8 +241,13 @@ export default function CartPage() {
           </div>
         )}
 
-        <div className="card mt-4 p-4">
+        <div className={classNames('card mt-4 p-4', restaurantUnavailable && 'opacity-60')}>
           <p className="mb-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200">Bill details</p>
+          {restaurantUnavailable && (
+            <p className="mb-2.5 text-xs font-medium text-rose-500">
+              This pricing won't apply until the issue above is resolved.
+            </p>
+          )}
           <div className="space-y-1.5 text-sm">
             <Row label="Item total" value={formatCurrency(pricing.itemTotal)} />
             {pricing.discountAmount > 0 && <Row label="Discount" value={`-${formatCurrency(pricing.discountAmount)}`} tone="text-emerald-600" />}

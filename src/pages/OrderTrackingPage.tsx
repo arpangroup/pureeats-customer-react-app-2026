@@ -249,7 +249,7 @@ export default function OrderTrackingPage() {
 
           <div className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
             <p>Paid via {order.paymentMode} on {new Date(order.createdAt).toLocaleString()}</p>
-            <p className="truncate">Delivered to: {order.address}</p>
+            <p className="truncate">{order.deliveryType === 'SELF_PICKUP' ? 'Picked up from' : 'Delivered to'}: {order.address}</p>
           </div>
         </div>
 
