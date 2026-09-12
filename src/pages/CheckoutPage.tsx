@@ -17,13 +17,10 @@ import { paymentService } from '@/services/paymentService'
 import { buildUpiLaunchUrl, isMobileDevice } from '@/lib/upi'
 import { loadRazorpayCheckoutScript, openRazorpayCheckout, type RazorpayPaymentResult } from '@/lib/razorpay'
 import { useAppConfig } from '@/context/AppConfigContext'
+import { paymentGatewayService, isKnownPaymentMode } from '@/services/paymentGatewayService'
 import type { PaymentMode } from '@/types/entities'
 
-const PAYMENT_OPTIONS: { mode: PaymentMode; label: string; icon: typeof Banknote; description: string }[] = [
-  { mode: 'COD', label: 'Cash on Delivery', icon: Banknote, description: 'Pay when your order arrives' },
-  { mode: 'WALLET', label: 'PureEats Wallet', icon: Wallet, description: 'Pay using your wallet balance' },
-  { mode: 'UPI', label: 'UPI / Cards / Netbanking', icon: Smartphone, description: 'Pay via GPay, PhonePe, Paytm, cards & more' },
-]
+const ICON_BY_MODE: Record<PaymentMode, typeof Banknote> = { COD: Banknote, WALLET: Wallet, UPI: Smartphone }
 
 /** Combines the two separate Cart-page notes into the single orderComment field the backend accepts. */
 function buildOrderComment(cookingNote: string, deliveryInstructions: string): string | null {
@@ -53,13 +50,16 @@ export default function CheckoutPage() {
   const { data: restaurant } = useAsync(() => (cart.restaurantId ? restaurantService.get(cart.restaurantId) : Promise.resolve(undefined)), [cart.restaurantId])
   const { data: walletBalance } = useAsync(() => (user ? walletService.balance(user.id) : Promise.resolve(0)), [user?.id])
   const { result: validation } = useCartValidation()
-  const { enabledPaymentMethods, razorpayKeyId } = useAppConfig()
+  const { razorpayKeyId } = useAppConfig()
   const razorpayConfigured = !!razorpayKeyId
-  // Empty list means the admin hasn't restricted anything — show every option, same as before this existed.
-  const paymentOptions = (enabledPaymentMethods.length === 0
-    ? PAYMENT_OPTIONS
-    : PAYMENT_OPTIONS.filter((o) => enabledPaymentMethods.includes(o.mode))
-  ).filter((o) => o.mode !== 'COD' || restaurant?.isAcceptCod !== false)
+  // Admin-controlled via Settings → Payment gateways (GET /payment-gateways, active-only) — a
+  // gateway with no code (or one that isn't COD/WALLET/UPI) is display-only and has no matching
+  // checkout flow, so it's filtered out here rather than rendered as a dead option.
+  const { data: gateways } = useAsync(() => paymentGatewayService.list(), [])
+  const paymentOptions = (gateways ?? [])
+    .filter((g) => isKnownPaymentMode(g.code))
+    .map((g) => ({ mode: g.code as PaymentMode, label: g.name, description: g.description, icon: ICON_BY_MODE[g.code as PaymentMode] }))
+    .filter((o) => o.mode !== 'COD' || restaurant?.isAcceptCod !== false)
 
   // Restaurant data (and so isAcceptCod) loads after the initial 'COD' default — swap to the first
   // still-available option rather than letting the customer submit a payment mode they can no
