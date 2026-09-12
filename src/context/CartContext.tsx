@@ -52,6 +52,11 @@ interface CartContextValue {
   addItem: (restaurantId: number, restaurantName: string, item: AddItemInput) => void
   /** Clears the cart first, then adds — use after the user confirms switching restaurants. */
   replaceCart: (restaurantId: number, restaurantName: string, item: AddItemInput) => void
+  /** Clears the cart and adds every item in one persisted update — unlike calling replaceCart/addItem
+   * in a loop (each of those closes over the cart state from render time, so a tight synchronous
+   * loop of them clobbers all but the last write), this folds every item into one state transition
+   * before persisting once. Used by "Reorder" to replay every line from a past order. */
+  replaceCartWithItems: (restaurantId: number, restaurantName: string, items: AddItemInput[]) => void
   updateQuantity: (key: string, quantity: number) => void
   removeLine: (key: string) => void
   clearCart: () => void
@@ -115,6 +120,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [persist, addToState],
   )
 
+  const replaceCartWithItems = useCallback(
+    (restaurantId: number, restaurantName: string, items: AddItemInput[]) => {
+      const next = items.reduce((state, item) => addToState(state, restaurantId, restaurantName, item), EMPTY_CART)
+      persist(next)
+    },
+    [persist, addToState],
+  )
+
   const updateQuantity = useCallback(
     (key: string, quantity: number) => {
       if (quantity <= 0) {
@@ -159,6 +172,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       wouldReplaceRestaurant,
       addItem,
       replaceCart,
+      replaceCartWithItems,
       updateQuantity,
       removeLine,
       clearCart,
@@ -180,6 +194,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       wouldReplaceRestaurant,
       addItem,
       replaceCart,
+      replaceCartWithItems,
       updateQuantity,
       removeLine,
       clearCart,

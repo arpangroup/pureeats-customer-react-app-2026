@@ -116,6 +116,7 @@ export default function CheckoutPage() {
         tax: validation.pricing.tax,
         restaurantCharge: validation.pricing.restaurantCharge,
         deliveryCharge: validation.pricing.deliveryCharge,
+        platformFee: validation.pricing.platformFee,
         discountAmount: validation.pricing.discountAmount,
         total: validation.pricing.itemTotal - validation.pricing.discountAmount + validation.pricing.tax + validation.pricing.restaurantCharge,
         payable: validation.pricing.payable + (cart.deliveryType === 'DELIVERY' ? cart.tipAmount : 0),

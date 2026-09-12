@@ -67,6 +67,7 @@ interface LiveOrderDetail {
   tax: string
   restaurantCharge: string
   deliveryCharge: string
+  platformFee: string
   driverTipAmount: string
   discountAmount: string
   total: string
@@ -106,6 +107,7 @@ function mapLiveOrder(d: LiveOrderDetail): Order {
     tax: toNumber(d.tax),
     restaurantCharge: toNumber(d.restaurantCharge),
     deliveryCharge: toNumber(d.deliveryCharge),
+    platformFee: toNumber(d.platformFee),
     driverTipAmount: toNumber(d.driverTipAmount),
     discountAmount: toNumber(d.discountAmount),
     total: toNumber(d.total),
@@ -146,6 +148,7 @@ export const orderService = {
         tax,
         restaurantCharge,
         deliveryCharge,
+        platformFee: 0,
         driverTipAmount: input.driverTipAmount,
         discountAmount,
         total,
@@ -242,6 +245,19 @@ export const orderService = {
     }
     const { data } = await apiClient.patch<{ data: LiveOrderDetail }>(`/orders/${id}/confirm-delivery`, { deliveryPin })
     return mapLiveOrder(data.data)
+  },
+
+  /** Downloads the PDF invoice and triggers a browser save — no mock-mode equivalent (there's no PDF to generate client-side), so this simply isn't offered when IS_MOCK. */
+  async downloadInvoice(id: number, uniqueOrderId: string): Promise<void> {
+    const { data } = await apiClient.get<Blob>(`/orders/${id}/invoice`, { responseType: 'blob' })
+    const url = URL.createObjectURL(data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `invoice-${uniqueOrderId}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
   },
 
   async timeline(userId: number, id: number): Promise<OrderTimeline> {

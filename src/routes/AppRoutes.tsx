@@ -20,6 +20,7 @@ import OrderTrackingPage from '@/pages/OrderTrackingPage'
 import RateOrderPage from '@/pages/RateOrderPage'
 import ProfilePage from '@/pages/ProfilePage'
 import EditProfilePage from '@/pages/EditProfilePage'
+import SupportPage from '@/pages/SupportPage'
 import AddressesPage from '@/pages/AddressesPage'
 import AddressFormPage from '@/pages/AddressFormPage'
 import WalletPage from '@/pages/WalletPage'
@@ -50,6 +51,7 @@ export function AppRoutes() {
         <Route path="/orders/:id" element={<OrderTrackingPage />} />
         <Route path="/orders/:id/confirmation" element={<OrderConfirmationPage />} />
         <Route path="/orders/:id/rate" element={<RateOrderPage />} />
+        <Route path="/support" element={<SupportPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/profile/edit" element={<EditProfilePage />} />
         <Route path="/profile/addresses" element={<AddressesPage />} />

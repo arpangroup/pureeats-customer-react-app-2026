@@ -259,6 +259,7 @@ export interface Order {
   tax: number
   restaurantCharge: number
   deliveryCharge: number
+  platformFee: number
   driverTipAmount: number
   discountAmount: number
   total: number

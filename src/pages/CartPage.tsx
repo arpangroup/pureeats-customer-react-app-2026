@@ -72,6 +72,7 @@ export default function CartPage() {
         tax: validation.pricing.tax,
         restaurantCharge: validation.pricing.restaurantCharge,
         deliveryCharge: validation.pricing.deliveryCharge,
+        platformFee: validation.pricing.platformFee,
         discountAmount: validation.pricing.discountAmount,
         total: validation.pricing.itemTotal - validation.pricing.discountAmount + validation.pricing.tax + validation.pricing.restaurantCharge,
         payable: validation.pricing.payable + (cart.deliveryType === 'DELIVERY' ? cart.tipAmount : 0),
@@ -235,6 +236,7 @@ export default function CartPage() {
             )}
             <Row label="Delivery charge" value={pricing.deliveryCharge === 0 ? 'FREE' : formatCurrency(pricing.deliveryCharge)} tone={pricing.deliveryCharge === 0 ? 'text-emerald-600' : undefined} />
             {cart.tipAmount > 0 && cart.deliveryType === 'DELIVERY' && <Row label="Delivery tip" value={formatCurrency(cart.tipAmount)} />}
+            {pricing.platformFee > 0 && <Row label="Platform fee" value={formatCurrency(pricing.platformFee)} />}
             <Row label="Taxes" value={formatCurrency(pricing.tax)} />
             <div className="mt-1.5 flex items-center justify-between border-t border-slate-100 pt-1.5 text-base font-bold text-slate-800 dark:border-slate-800 dark:text-slate-100">
               <span>To pay</span>
