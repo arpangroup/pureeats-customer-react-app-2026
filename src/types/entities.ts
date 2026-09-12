@@ -157,7 +157,7 @@ export interface Address {
   isDefault: boolean
 }
 
-export type PaymentMode = 'COD' | 'WALLET' | 'UPI'
+export type PaymentMode = 'COD' | 'WALLET' | 'UPI' | 'RAZORPAY'
 export type OrderDeliveryType = 'DELIVERY' | 'SELF_PICKUP'
 
 export interface CartAddon {
