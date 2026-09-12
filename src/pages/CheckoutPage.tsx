@@ -4,11 +4,12 @@ import { Banknote, CheckCircle2, Smartphone, Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/ui/Feedback'
 import { classNames, formatCurrency } from '@/lib/format'
-import { estimateOrderPricing } from '@/lib/pricing'
+import { estimateOrderPricing, type OrderPricing } from '@/lib/pricing'
 import { useCart } from '@/hooks/useCart'
 import { useAuth } from '@/hooks/useAuth'
 import { useActiveLocation } from '@/hooks/useLocation'
 import { useAsync } from '@/hooks/useAsync'
+import { useCartValidation } from '@/hooks/useCartValidation'
 import { restaurantService } from '@/services/restaurantService'
 import { orderService, type PlaceOrderInput } from '@/services/orderService'
 import { walletService } from '@/services/walletService'
@@ -21,7 +22,7 @@ import type { PaymentMode } from '@/types/entities'
 const PAYMENT_OPTIONS: { mode: PaymentMode; label: string; icon: typeof Banknote; description: string }[] = [
   { mode: 'COD', label: 'Cash on Delivery', icon: Banknote, description: 'Pay when your order arrives' },
   { mode: 'WALLET', label: 'PureEats Wallet', icon: Wallet, description: 'Pay using your wallet balance' },
-  { mode: 'UPI', label: 'UPI', icon: Smartphone, description: 'Pay via GPay, PhonePe, Paytm & more' },
+  { mode: 'UPI', label: 'UPI / Cards / Netbanking', icon: Smartphone, description: 'Pay via GPay, PhonePe, Paytm, cards & more' },
 ]
 
 /** Combines the two separate Cart-page notes into the single orderComment field the backend accepts. */
@@ -51,6 +52,7 @@ export default function CheckoutPage() {
 
   const { data: restaurant } = useAsync(() => (cart.restaurantId ? restaurantService.get(cart.restaurantId) : Promise.resolve(undefined)), [cart.restaurantId])
   const { data: walletBalance } = useAsync(() => (user ? walletService.balance(user.id) : Promise.resolve(0)), [user?.id])
+  const { result: validation } = useCartValidation()
   const { enabledPaymentMethods, razorpayKeyId } = useAppConfig()
   const razorpayConfigured = !!razorpayKeyId
   // Empty list means the admin hasn't restricted anything — show every option, same as before this existed.
@@ -103,7 +105,22 @@ export default function CheckoutPage() {
     )
   }
 
-  const pricing = estimateOrderPricing(cart.subtotal, restaurant, cart.deliveryType, cart.coupon, cart.tipAmount)
+  // Same derivation as CartPage.tsx — trust the server's live-validated numbers (which correctly
+  // price dynamic/distance-based delivery charges) over the client-side flat estimate whenever a
+  // validation result is available, so Checkout can never show (or charge Razorpay) a different
+  // amount than what Cart just displayed.
+  const clientEstimate = estimateOrderPricing(cart.subtotal, restaurant, cart.deliveryType, cart.coupon, cart.tipAmount)
+  const pricing: OrderPricing = validation
+    ? {
+        itemTotal: validation.pricing.itemTotal,
+        tax: validation.pricing.tax,
+        restaurantCharge: validation.pricing.restaurantCharge,
+        deliveryCharge: validation.pricing.deliveryCharge,
+        discountAmount: validation.pricing.discountAmount,
+        total: validation.pricing.itemTotal - validation.pricing.discountAmount + validation.pricing.tax + validation.pricing.restaurantCharge,
+        payable: validation.pricing.payable + (cart.deliveryType === 'DELIVERY' ? cart.tipAmount : 0),
+      }
+    : clientEstimate
   const walletInsufficient = paymentMode === 'WALLET' && (walletBalance ?? 0) < pricing.payable
   // Razorpay's Checkout widget IS a real UPI-capable gateway (plus cards/netbanking/wallets) — once
   // an admin has configured a key, "UPI" opens that instead of the trust-based deep link below, on
@@ -214,7 +231,11 @@ export default function CheckoutPage() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {mode === 'WALLET' ? `Balance: ${formatCurrency(walletBalance ?? 0)}` : description}
+                    {mode === 'WALLET'
+                      ? `Balance: ${formatCurrency(walletBalance ?? 0)}`
+                      : mode === 'UPI' && razorpayConfigured
+                        ? `${description} · Secured by Razorpay`
+                        : description}
                   </p>
                 </div>
               </button>
