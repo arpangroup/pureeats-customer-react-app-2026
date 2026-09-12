@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { Banknote, CheckCircle2, Smartphone, Wallet } from 'lucide-react'
+import { Banknote, CheckCircle2, CreditCard, Smartphone, Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/ui/Feedback'
 import { classNames, formatCurrency } from '@/lib/format'
@@ -52,24 +52,30 @@ export default function CheckoutPage() {
   const { result: validation } = useCartValidation()
   const { razorpayKeyId } = useAppConfig()
   const razorpayConfigured = !!razorpayKeyId
-  // Admin-controlled via Settings → Payment gateways (GET /payment-gateways, active-only) — a
-  // gateway with no code (or one that isn't COD/WALLET/UPI) is display-only and has no matching
-  // checkout flow, so it's filtered out here rather than rendered as a dead option.
+  // Admin-controlled via Settings → Payment gateways (GET /payment-gateways, active-only) — every
+  // active gateway shows here, whether or not it has a real checkout flow yet (a code the customer
+  // app recognizes). One without a match (Razorpay/Stripe/PayPal/...) still renders as a row, just
+  // disabled with a "Not supported yet" badge, rather than silently disappearing from the list.
   const { data: gateways } = useAsync(() => paymentGatewayService.list(), [])
   const paymentOptions = (gateways ?? [])
-    .filter((g) => isKnownPaymentMode(g.code))
-    .map((g) => ({ mode: g.code as PaymentMode, label: g.name, description: g.description, icon: ICON_BY_MODE[g.code as PaymentMode] }))
+    .map((g) => ({
+      mode: g.code,
+      label: g.name,
+      description: g.description,
+      icon: isKnownPaymentMode(g.code) ? ICON_BY_MODE[g.code] : CreditCard,
+      supported: isKnownPaymentMode(g.code),
+    }))
     .filter((o) => o.mode !== 'COD' || restaurant?.isAcceptCod !== false)
-  // Catalog placeholders with no real checkout flow yet (Razorpay/Stripe/PayPal/...) — shown as a
-  // non-interactive strip, never as a selectable option.
-  const comingSoonGateways = (gateways ?? []).filter((g) => !isKnownPaymentMode(g.code))
+
+  const supportedOptions = paymentOptions.filter((o) => o.supported)
 
   // Restaurant data (and so isAcceptCod) loads after the initial 'COD' default — swap to the first
   // still-available option rather than letting the customer submit a payment mode they can no
-  // longer see selected (or that's no longer offered at all).
+  // longer see selected (or that's no longer offered at all). Only ever lands on a supported option
+  // — an unsupported row can't be selected in the first place (see the button's disabled state below).
   useEffect(() => {
-    if (paymentOptions.length > 0 && !paymentOptions.some((o) => o.mode === paymentMode)) {
-      setPaymentMode(paymentOptions[0].mode)
+    if (supportedOptions.length > 0 && !supportedOptions.some((o) => o.mode === paymentMode)) {
+      setPaymentMode(supportedOptions[0].mode as PaymentMode)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentOptions.map((o) => o.mode).join(',')])
@@ -222,18 +228,30 @@ export default function CheckoutPage() {
         <div className="card mt-4 p-4">
           <p className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Payment method</p>
           <div className="space-y-2">
-            {paymentOptions.map(({ mode, label, icon: Icon, description }) => (
+            {paymentOptions.map(({ mode, label, icon: Icon, description, supported }) => (
               <button
-                key={mode}
-                onClick={() => selectPaymentMode(mode)}
+                key={mode ?? label}
+                onClick={() => supported && selectPaymentMode(mode as PaymentMode)}
+                disabled={!supported}
                 className={classNames(
                   'flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors',
-                  paymentMode === mode ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/10' : 'border-slate-200 dark:border-slate-700',
+                  !supported
+                    ? 'cursor-not-allowed border-slate-100 opacity-50 dark:border-slate-800'
+                    : paymentMode === mode
+                      ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/10'
+                      : 'border-slate-200 dark:border-slate-700',
                 )}
               >
                 <Icon size={20} className="shrink-0 text-slate-500 dark:text-slate-400" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</p>
+                  <p className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    {label}
+                    {!supported && (
+                      <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                        Not supported yet
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {mode === 'WALLET'
                       ? `Balance: ${formatCurrency(walletBalance ?? 0)}`
@@ -248,11 +266,6 @@ export default function CheckoutPage() {
           {walletInsufficient && <p className="mt-2 text-xs text-rose-500">Insufficient wallet balance for this order.</p>}
           {paymentMode === 'UPI' && !razorpayConfigured && !isMobileDevice() && (
             <p className="mt-2 text-xs text-slate-400">Open checkout on your phone to pay directly from a UPI app — on desktop, order confirmation still goes through.</p>
-          )}
-          {comingSoonGateways.length > 0 && (
-            <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-400 dark:border-slate-800">
-              We also support: {comingSoonGateways.map((g) => g.name).join(', ')}
-            </p>
           )}
         </div>
 
