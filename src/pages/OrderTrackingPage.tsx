@@ -169,7 +169,7 @@ export default function OrderTrackingPage() {
 
         {timeline && (
           <div className="card mt-4 p-4">
-            <OrderStatusTimeline timeline={timeline} currentStatus={order.status} />
+            <OrderStatusTimeline timeline={timeline} currentStatus={order.status} deliveryType={order.deliveryType} />
           </div>
         )}
 
