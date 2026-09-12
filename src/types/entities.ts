@@ -6,6 +6,8 @@
 
 export type UserRole = 'admin' | 'employee' | 'restaurant-owner' | 'delivery-guy' | 'customer'
 
+export type Gender = 'MALE' | 'FEMALE' | 'OTHER'
+
 export interface User {
   id: number
   name: string
@@ -14,6 +16,8 @@ export interface User {
   photo: string | null
   role: UserRole
   defaultAddressId: number | null
+  dob: string | null
+  gender: Gender | null
 }
 
 export interface RestaurantCategory {

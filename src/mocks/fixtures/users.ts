@@ -7,8 +7,8 @@ import type { User } from '@/types/entities'
  * VITE_DATA_SOURCE=live. The rest are mock-only, for a fuller demo picker.
  */
 export const users: User[] = [
-  { id: 12, name: 'Demo Customer One', email: 'demo.customer1@pureeats.local', phone: '7000000009', photo: null, role: 'customer', defaultAddressId: 1 },
-  { id: 13, name: 'Demo Customer Two', email: 'demo.customer2@pureeats.local', phone: '7000000010', photo: null, role: 'customer', defaultAddressId: 2 },
-  { id: 100001, name: 'Arjun Mehta', email: 'arjun.mehta@example.com', phone: '9820011223', photo: null, role: 'customer', defaultAddressId: 3 },
-  { id: 100002, name: 'Priya Nair', email: 'priya.nair@example.com', phone: '9820044556', photo: null, role: 'customer', defaultAddressId: 4 },
+  { id: 12, name: 'Demo Customer One', email: 'demo.customer1@pureeats.local', phone: '7000000009', photo: null, role: 'customer', defaultAddressId: 1, dob: null, gender: null },
+  { id: 13, name: 'Demo Customer Two', email: 'demo.customer2@pureeats.local', phone: '7000000010', photo: null, role: 'customer', defaultAddressId: 2, dob: null, gender: null },
+  { id: 100001, name: 'Arjun Mehta', email: 'arjun.mehta@example.com', phone: '9820011223', photo: null, role: 'customer', defaultAddressId: 3, dob: null, gender: null },
+  { id: 100002, name: 'Priya Nair', email: 'priya.nair@example.com', phone: '9820044556', photo: null, role: 'customer', defaultAddressId: 4, dob: null, gender: null },
 ]

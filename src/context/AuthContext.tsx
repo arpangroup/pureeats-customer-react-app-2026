@@ -3,6 +3,7 @@ import { AUTH_REFRESH_TOKEN_STORAGE_KEY, AUTH_TOKEN_STORAGE_KEY, AUTH_USER_STORA
 import { readStorage, removeStorage, writeStorage } from '@/lib/storage'
 import { decodeJwtPayload } from '@/lib/jwt'
 import { authService } from '@/services/authService'
+import { userService } from '@/services/userService'
 import type { User } from '@/types/entities'
 import type {
   AccessTokenClaims,
@@ -25,6 +26,10 @@ interface AuthContextValue {
   resendOtp: (challengeId: string) => Promise<ResendOtpResponse>
   logout: () => Promise<void>
   logoutAll: () => Promise<void>
+  /** Re-fetches the full profile from GET /users/me and updates context state — call after any
+   * profile edit, since `user` is otherwise only ever set from the JWT claims at login time (which
+   * never carry dob/gender/photo, and go stale the moment name/phone/email change). */
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -80,11 +85,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         photo: null,
         role: mapBackendRole(claims.role),
         defaultAddressId: null,
+        dob: null,
+        gender: null,
       }
       writeStorage(AUTH_USER_STORAGE_KEY, verifiedUser)
       writeStorage(AUTH_TOKEN_STORAGE_KEY, tokens.accessToken)
       writeStorage(AUTH_REFRESH_TOKEN_STORAGE_KEY, tokens.refreshToken)
       setUser(verifiedUser)
+      // Best-effort — the JWT-derived user above is already enough to proceed; this just backfills
+      // whatever the token claims don't carry (photo, dob, gender, a saved defaultAddressId).
+      userService
+        .getMe(verifiedUser.id)
+        .then((full) => {
+          writeStorage(AUTH_USER_STORAGE_KEY, full)
+          setUser(full)
+        })
+        .catch(() => undefined)
       return verifiedUser
     } catch (err) {
       setError((err as { message?: string })?.message ?? 'Unable to verify OTP')
@@ -124,9 +140,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
+  const refreshUser = useCallback(async () => {
+    if (!user) return
+    const full = await userService.getMe(user.id)
+    writeStorage(AUTH_USER_STORAGE_KEY, full)
+    setUser(full)
+  }, [user])
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isAuthenticated: !!user, isLoading, error, register, requestOtp, verifyOtp, resendOtp, logout, logoutAll }),
-    [user, isLoading, error, register, requestOtp, verifyOtp, resendOtp, logout, logoutAll],
+    () => ({ user, isAuthenticated: !!user, isLoading, error, register, requestOtp, verifyOtp, resendOtp, logout, logoutAll, refreshUser }),
+    [user, isLoading, error, register, requestOtp, verifyOtp, resendOtp, logout, logoutAll, refreshUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
