@@ -60,6 +60,9 @@ export default function CheckoutPage() {
     .filter((g) => isKnownPaymentMode(g.code))
     .map((g) => ({ mode: g.code as PaymentMode, label: g.name, description: g.description, icon: ICON_BY_MODE[g.code as PaymentMode] }))
     .filter((o) => o.mode !== 'COD' || restaurant?.isAcceptCod !== false)
+  // Catalog placeholders with no real checkout flow yet (Razorpay/Stripe/PayPal/...) — shown as a
+  // non-interactive strip, never as a selectable option.
+  const comingSoonGateways = (gateways ?? []).filter((g) => !isKnownPaymentMode(g.code))
 
   // Restaurant data (and so isAcceptCod) loads after the initial 'COD' default — swap to the first
   // still-available option rather than letting the customer submit a payment mode they can no
@@ -245,6 +248,11 @@ export default function CheckoutPage() {
           {walletInsufficient && <p className="mt-2 text-xs text-rose-500">Insufficient wallet balance for this order.</p>}
           {paymentMode === 'UPI' && !razorpayConfigured && !isMobileDevice() && (
             <p className="mt-2 text-xs text-slate-400">Open checkout on your phone to pay directly from a UPI app — on desktop, order confirmation still goes through.</p>
+          )}
+          {comingSoonGateways.length > 0 && (
+            <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-400 dark:border-slate-800">
+              We also support: {comingSoonGateways.map((g) => g.name).join(', ')}
+            </p>
           )}
         </div>
 
