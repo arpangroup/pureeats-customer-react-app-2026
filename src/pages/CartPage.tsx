@@ -48,6 +48,20 @@ export default function CartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [validation?.coupon?.valid, validation?.coupon?.reason])
 
+  // A restaurant's deliveryType ("self-pickup" | "delivery" | "both") is its own posted setting, not
+  // something that varies by customer address — a self-pickup-only restaurant should never let
+  // "Delivery" be selected at all (previously it was always clickable regardless, so a customer could
+  // end up with a cart priced for delivery from a restaurant that never offers it, computing a
+  // delivery charge against whatever address happened to be active — nonsensical for a restaurant
+  // that only serves pickup). Restaurant data loads async, after the cart's own default of
+  // 'DELIVERY', so this corrects it the moment we learn the restaurant doesn't actually support it.
+  useEffect(() => {
+    if (restaurant && restaurant.deliveryType === 'self-pickup' && cart.deliveryType === 'DELIVERY') {
+      cart.setDeliveryType('SELF_PICKUP')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurant?.deliveryType])
+
   if (cart.lines.length === 0) {
     return (
       <div>
@@ -60,6 +74,7 @@ export default function CartPage() {
   }
 
   const canSelfPickup = restaurant?.deliveryType === 'self-pickup' || restaurant?.deliveryType === 'both'
+  const canDeliver = restaurant?.deliveryType === 'delivery' || restaurant?.deliveryType === 'both'
   const needsAddress = cart.deliveryType === 'DELIVERY'
   const clientEstimate = estimateOrderPricing(cart.subtotal, restaurant, cart.deliveryType, cart.coupon, cart.tipAmount)
 
@@ -154,9 +169,10 @@ export default function CartPage() {
             {tab === 'delivery' && (
               <div className="flex gap-2">
                 <button
-                  onClick={() => cart.setDeliveryType('DELIVERY')}
+                  onClick={() => canDeliver && cart.setDeliveryType('DELIVERY')}
+                  disabled={!canDeliver}
                   className={classNames(
-                    'flex flex-1 flex-col items-center gap-1.5 rounded-xl border py-3 text-sm font-semibold',
+                    'flex flex-1 flex-col items-center gap-1.5 rounded-xl border py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40',
                     cart.deliveryType === 'DELIVERY' ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300',
                   )}
                 >
