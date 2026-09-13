@@ -32,10 +32,10 @@ interface PendingPoint {
  *
  * The map (AddressMapPicker — same component AddressFormPage uses, so it gets Google/OSM
  * auto-selection for free) is the source of truth for "where am I about to set my location to":
- * dragging the pin, using its built-in search box, tapping "use current location", or picking a
- * recent search all just move the pin and fill in `pending` — nothing is committed as the active
- * location until "Confirm location" is tapped. A saved address is the one exception (it's already
- * a complete, confirmed choice), so picking one there activates it immediately.
+ * dragging the pin, using its built-in search box, or tapping "use current location" just move the
+ * pin and fill in `pending` — nothing is committed as the active location until "Confirm location"
+ * is tapped. A recent search or a saved address is already a complete, confirmed choice, so picking
+ * either one activates it and navigates back immediately, same as a checkout-flow address picker.
  */
 export default function LocationPickerPage() {
   const navigate = useNavigate()
@@ -87,8 +87,14 @@ export default function LocationPickerPage() {
     }
   }
 
+  // Picking a recent search is already a complete, confirmed choice (same reasoning as
+  // chooseSavedAddress below) - no need to make the user land back on the map and tap "Confirm
+  // location" again for somewhere they'd already picked once.
   function pickRecent(recent: RecentLocation) {
-    setPending({ latitude: recent.latitude, longitude: recent.longitude, label: recent.label, title: recent.title })
+    const point: PendingPoint = { latitude: recent.latitude, longitude: recent.longitude, label: recent.label, title: recent.title }
+    setDetectedLocation('gps', point)
+    addRecentLocation(point)
+    navigate(-1)
   }
 
   function chooseSavedAddress(address: Address) {
