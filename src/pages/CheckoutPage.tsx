@@ -66,7 +66,7 @@ export default function CheckoutPage() {
         mode: g.code,
         label: g.name,
         description: g.description,
-        icon: known ? ICON_BY_MODE[g.code] : CreditCard,
+        icon: isKnownPaymentMode(g.code) ? ICON_BY_MODE[g.code] : CreditCard,
         supported: disabledReason === null,
         disabledReason,
       }

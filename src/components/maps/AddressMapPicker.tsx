@@ -31,7 +31,7 @@ function PlaceSearchBox({ onPlaceSelected, tall }: { onPlaceSelected: (place: go
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
-    const element = new google.maps.places.PlaceAutocompleteElement()
+    const element = new google.maps.places.PlaceAutocompleteElement({})
     element.style.width = '100%'
     container.appendChild(element)
 
