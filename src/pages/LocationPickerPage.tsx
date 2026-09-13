@@ -19,6 +19,10 @@ interface PendingPoint {
   latitude: number
   longitude: number
   label: string
+  /** Searched place's name, when this point came from a named-place search result — shown as the
+   * headline instead of a locality guessed from `label` (e.g. "Ambika men's hostel & pg" rather
+   * than the first comma-segment of its address, which may just be an internal building code). */
+  title?: string
 }
 
 /**
@@ -65,8 +69,8 @@ export default function LocationPickerPage() {
     [user?.id],
   )
 
-  function handleMapChange(coords: { latitude: number; longitude: number }, formattedAddress?: string) {
-    setPending((prev) => ({ latitude: coords.latitude, longitude: coords.longitude, label: formattedAddress ?? prev?.label ?? 'Selected location' }))
+  function handleMapChange(coords: { latitude: number; longitude: number }, formattedAddress?: string, title?: string) {
+    setPending((prev) => ({ latitude: coords.latitude, longitude: coords.longitude, label: formattedAddress ?? prev?.label ?? 'Selected location', title }))
   }
 
   async function handleUseCurrentLocation() {
@@ -84,7 +88,7 @@ export default function LocationPickerPage() {
   }
 
   function pickRecent(recent: RecentLocation) {
-    setPending({ latitude: recent.latitude, longitude: recent.longitude, label: recent.label })
+    setPending({ latitude: recent.latitude, longitude: recent.longitude, label: recent.label, title: recent.title })
   }
 
   function chooseSavedAddress(address: Address) {
@@ -136,7 +140,8 @@ export default function LocationPickerPage() {
           <MapPin size={16} className="mt-0.5 shrink-0 text-brand-600" />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Selected location</p>
-            <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{pending.label}</p>
+            <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{pending.title ?? pending.label}</p>
+            {pending.title && <p className="truncate text-xs text-slate-500 dark:text-slate-400">{pending.label}</p>}
           </div>
         </div>
       )}
@@ -151,7 +156,7 @@ export default function LocationPickerPage() {
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">Recent searches</p>
             <ul className="divide-y divide-slate-100 dark:divide-slate-800">
               {recents.map((r, i) => {
-                const primary = extractPrimaryLocality(r.label) ?? r.label
+                const primary = r.title ?? extractPrimaryLocality(r.label) ?? r.label
                 return (
                   <li key={i}>
                     <button onClick={() => pickRecent(r)} className="flex w-full items-start gap-3 py-3 text-left">

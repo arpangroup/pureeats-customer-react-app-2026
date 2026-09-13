@@ -12,6 +12,9 @@ const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org'
 
 export interface OsmPlaceResult {
   label: string
+  /** POI/business name Nominatim returns separately from the full `display_name` address for
+   * named-place results (e.g. "Ambika men's hostel & pg") — undefined for a plain address match. */
+  title?: string
   latitude: number
   longitude: number
 }
@@ -43,13 +46,16 @@ export async function osmSearchPlaces(query: string): Promise<OsmPlaceResult[]> 
     })
     if (!res.ok) return []
     const data = await res.json()
+    if (IS_DEV) console.log('[osmSearchPlaces]', q, '→', data)
     if (!Array.isArray(data)) return []
-    return data.map((r: { display_name: string; lat: string; lon: string }) => ({
+    return data.map((r: { display_name: string; name?: string; lat: string; lon: string }) => ({
       label: r.display_name,
+      title: r.name || undefined,
       latitude: Number(r.lat),
       longitude: Number(r.lon),
     }))
-  } catch {
+  } catch (err) {
+    if (IS_DEV) console.warn('[osmSearchPlaces] threw', q, err)
     return []
   }
 }

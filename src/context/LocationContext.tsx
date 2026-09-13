@@ -10,6 +10,9 @@ export type DetectedLocationSource = 'gps' | 'ip'
 /** A location resolved automatically (GPS or IP) rather than picked from the customer's saved addresses — shown as a stand-in for activeAddress until they sign in / save a real address. Session-only, not persisted, since it's just a best-effort hint. */
 export interface DetectedLocation {
   label: string
+  /** Searched place's name, when this location came from a named-place search result rather than
+   * a plain map click/drag/GPS fix — preferred over a locality guessed from `label` for display. */
+  title?: string
   latitude: number
   longitude: number
 }

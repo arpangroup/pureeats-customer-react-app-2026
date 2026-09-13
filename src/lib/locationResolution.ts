@@ -43,7 +43,7 @@ export function resolveActiveLocationLines({ activeAddress, detectedLocations, s
     if (source === 'gps' || source === 'ip') {
       const detected = detectedLocations[source]
       if (detected) {
-        const primary = extractPrimaryLocality(detected.label) ?? (source === 'gps' ? 'Current location' : 'Near you')
+        const primary = detected.title ?? extractPrimaryLocality(detected.label) ?? (source === 'gps' ? 'Current location' : 'Near you')
         return { primary, secondary: detected.label }
       }
     }

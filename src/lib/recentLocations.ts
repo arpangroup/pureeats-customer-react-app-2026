@@ -2,6 +2,9 @@ import { readStorage, writeStorage } from '@/lib/storage'
 
 export interface RecentLocation {
   label: string
+  /** Searched place's name, when the pick came from a named-place search result rather than a
+   * plain map click/drag — shown as the headline instead of a locality guessed from `label`. */
+  title?: string
   latitude: number
   longitude: number
 }
