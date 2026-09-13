@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { GoogleMap, MarkerF } from '@react-google-maps/api'
 import { useGoogleMaps } from '@/lib/googleMaps'
+import { useTheme } from '@/context/ThemeContext'
 import { IS_DEV } from '@/config/env'
 import { OsmMapPicker } from './OsmMapPicker'
 
@@ -25,8 +26,10 @@ interface AddressMapPickerProps {
  */
 function PlaceSearchBox({ onPlaceSelected, tall }: { onPlaceSelected: (place: google.maps.places.Place) => void; tall?: boolean }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const elementRef = useRef<google.maps.places.PlaceAutocompleteElement | null>(null)
   const onPlaceSelectedRef = useRef(onPlaceSelected)
   onPlaceSelectedRef.current = onPlaceSelected
+  const { theme } = useTheme()
 
   useEffect(() => {
     const container = containerRef.current
@@ -34,6 +37,7 @@ function PlaceSearchBox({ onPlaceSelected, tall }: { onPlaceSelected: (place: go
     const element = new google.maps.places.PlaceAutocompleteElement({})
     element.style.width = '100%'
     container.appendChild(element)
+    elementRef.current = element
 
     function handleSelect(event: Event) {
       const { placePrediction } = event as unknown as { placePrediction: google.maps.places.PlacePrediction | null }
@@ -46,8 +50,21 @@ function PlaceSearchBox({ onPlaceSelected, tall }: { onPlaceSelected: (place: go
     return () => {
       element.removeEventListener('gmp-select', handleSelect)
       container.removeChild(element)
+      elementRef.current = null
     }
   }, [])
+
+  // PlaceAutocompleteElement's shadow DOM styles itself off the OS's raw prefers-color-scheme,
+  // entirely independent of this app's own light/dark toggle (ThemeContext) — the two can disagree
+  // (e.g. a phone in system dark mode with this app still showing light), and when they do, the
+  // widget paints its own near-black surface with no regard for the light page around it. Its
+  // Places UI Kit color custom properties (--gmp-mat-color-*) don't actually affect this element's
+  // own background (verified live - setting them had no visible effect); what does is the standard
+  // CSS `color-scheme` property, which the widget's internal styling evidently keys off instead of
+  // the media query directly. Pinning it to this app's active theme keeps the two in sync.
+  useEffect(() => {
+    if (elementRef.current) elementRef.current.style.colorScheme = theme
+  }, [theme])
 
   return <div ref={containerRef} className={tall ? 'w-full rounded-xl bg-white shadow-md dark:bg-slate-900' : 'w-full'} />
 }
