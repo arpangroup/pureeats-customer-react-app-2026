@@ -32,6 +32,11 @@ export default function AddressFormPage() {
   const [tag, setTag] = useState('Home')
   const [makeDefault, setMakeDefault] = useState(false)
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null)
+  // Searched place's name (e.g. "Ambika Mens PG"), when the pin came from a named-place search
+  // result — shown as the "Delivery location" preview's headline instead of the raw formatted
+  // address, same as the location picker page. Cleared whenever the address is edited by hand
+  // (typed, or a plain map click/drag with no place name), since it'd otherwise go stale.
+  const [title, setTitle] = useState<string | undefined>(undefined)
   const [locating, setLocating] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,9 +65,10 @@ export default function AddressFormPage() {
     }
   }
 
-  function handleMapChange(next: { latitude: number; longitude: number }, formattedAddress?: string) {
+  function handleMapChange(next: { latitude: number; longitude: number }, formattedAddress?: string, placeTitle?: string) {
     setCoords(next)
     if (formattedAddress) setAddress(formattedAddress)
+    setTitle(placeTitle)
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -120,7 +126,8 @@ export default function AddressFormPage() {
           {address && (
             <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Delivery location</p>
-              <p className="mt-0.5 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{address}</p>
+              <p className="mt-0.5 truncate text-sm font-medium text-slate-700 dark:text-slate-200">{title ?? address}</p>
+              {title && <p className="truncate text-xs text-slate-500 dark:text-slate-400">{address}</p>}
             </div>
           )}
         </div>
@@ -131,7 +138,15 @@ export default function AddressFormPage() {
               <TextInput value={house} onChange={(e) => setHouse(e.target.value)} placeholder="e.g. 221B, Brigade Towers" required />
             </Field>
             <Field label="Area / Street" required>
-              <TextInput value={address} onChange={(e) => setAddress(e.target.value)} placeholder="e.g. 5th Block, Koramangala" required />
+              <TextInput
+                value={address}
+                onChange={(e) => {
+                  setAddress(e.target.value)
+                  setTitle(undefined)
+                }}
+                placeholder="e.g. 5th Block, Koramangala"
+                required
+              />
             </Field>
             <Field label="Landmark (optional)">
               <TextInput value={landmark} onChange={(e) => setLandmark(e.target.value)} placeholder="e.g. Near Forum Mall" />

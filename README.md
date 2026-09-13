@@ -4,6 +4,9 @@ Customer-facing food-ordering React app (Vite + TypeScript + Tailwind), styled t
 
 Runs entirely on organized mock data by default — no backend needed. It talks to the same Spring Boot backend as the admin panel (`pureeats-react-ui`), using the same auth contract (OTP login, JWT claims, roles), so switching to live data later is a one-line env change.
 
+## Quick Links
+- [Location Resolution](https://claude.ai/code/artifact/9ee3c548-76c1-408a-b765-cefbb6506a5a)
+
 ## Scripts
 
 ```bash
