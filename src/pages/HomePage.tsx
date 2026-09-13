@@ -7,6 +7,7 @@ import { couponService } from '@/services/couponService'
 import { menuService } from '@/services/menuService'
 import { promoSliderService } from '@/services/promoSliderService'
 import { useActiveLocationLines } from '@/hooks/useActiveLocationLines'
+import { useActiveLocationCoords } from '@/hooks/useActiveLocationCoords'
 import { useAppConfig } from '@/context/AppConfigContext'
 import { RestaurantCard } from '@/components/restaurants/RestaurantCard'
 import { RecommendedItemCard } from '@/components/home/RecommendedItemCard'
@@ -21,8 +22,9 @@ import { classNames } from '@/lib/format'
 export default function HomePage() {
   const navigate = useNavigate()
   const locationLines = useActiveLocationLines()
+  const coords = useActiveLocationCoords()
   const config = useAppConfig()
-  const { data: restaurants, isLoading } = useAsync(() => restaurantService.list(), [])
+  const { data: restaurants, isLoading } = useAsync(() => restaurantService.list(coords ?? undefined), [coords])
   const { data: categories } = useAsync(
     () => (config.cuisineCategorySectionEnabled ? restaurantService.categories() : Promise.resolve([])),
     [config.cuisineCategorySectionEnabled],

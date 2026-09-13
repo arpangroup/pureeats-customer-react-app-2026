@@ -11,6 +11,7 @@ import { VegBadge } from '@/components/ui/VegBadge'
 import { AudioSearchIcon } from '@/components/ui/AudioSearchIcon'
 import { EmptyState, Skeleton } from '@/components/ui/Feedback'
 import { useAppConfig } from '@/context/AppConfigContext'
+import { useActiveLocationCoords } from '@/hooks/useActiveLocationCoords'
 import { columnLayoutClass } from '@/lib/columnLayout'
 import { selectTopPicks } from '@/lib/topPicks'
 import { readStorage, writeStorage } from '@/lib/storage'
@@ -21,6 +22,7 @@ const RECENT_SEARCHES_KEY = 'pureeats.recentSearches'
 export default function SearchPage() {
   const navigate = useNavigate()
   const config = useAppConfig()
+  const coords = useActiveLocationCoords()
   const [query, setQuery] = useState('')
   const [debounced, setDebounced] = useState('')
   const [resultTab, setResultTab] = useState<'restaurants' | 'dishes'>('restaurants')
@@ -39,7 +41,10 @@ export default function SearchPage() {
   // restaurantService.list() is cached module-side (see restaurantService.ts) — this reuses
   // whatever HomePage (or anything else) already fetched this session instead of firing a second
   // /restaurants request, so Top Picks shows here "for free".
-  const { data: allRestaurants } = useAsync(() => (debounced || !config.topPicksEnabled ? Promise.resolve(null) : restaurantService.list()), [debounced, config.topPicksEnabled])
+  const { data: allRestaurants } = useAsync(
+    () => (debounced || !config.topPicksEnabled ? Promise.resolve(null) : restaurantService.list(coords ?? undefined)),
+    [debounced, config.topPicksEnabled, coords],
+  )
   const topPicks = useMemo(() => selectTopPicks(allRestaurants ?? [], 4), [allRestaurants])
 
   function commitSearch(q: string) {

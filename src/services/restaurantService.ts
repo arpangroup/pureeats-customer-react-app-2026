@@ -48,8 +48,10 @@ interface LiveRestaurantSummary {
   name: string
   slug: string
   image: string
-  rating: string
+  rating: number | null
   deliveryTime: string
+  /** Straight-line km from the request's lat/lng (see restaurantService.list) to this restaurant — null unless both were sent and this restaurant's own coordinates are valid. */
+  distanceKm: number | null
   priceRange: string
   isPureveg: boolean
   isActive: boolean
@@ -101,7 +103,7 @@ function mapLive(d: LiveRestaurantSummary | LiveRestaurantDetail): Restaurant {
     landmark: detail.landmark ?? '',
     latitude: toNumber(detail.latitude),
     longitude: toNumber(detail.longitude),
-    distanceKm: 0,
+    distanceKm: toNumber(d.distanceKm, 0),
     deliveryCharge: toNumber(d.deliveryCharges),
     minOrderAmount: toNumber(d.minOrderPrice),
     deliveryRadiusKm: toNumber(detail.deliveryRadius),
@@ -127,24 +129,39 @@ function mapLive(d: LiveRestaurantSummary | LiveRestaurantDetail): Restaurant {
 // everyone else in the same session reuses that promise instead of re-fetching, so e.g. navigating
 // Home -> Search never fires a second /restaurants call. Cleared on failure so the next caller
 // retries rather than getting stuck on a rejected promise for the rest of the session.
-let listCache: Promise<Restaurant[]> | null = null
+//
+// Keyed by (rounded) lat/lng rather than one single promise, now that the list carries a
+// location-dependent ETA/distanceKm — callers sharing the same resolved location (the usual case:
+// Home/Search/TopPicks all read the same active-location hook within one session) still share one
+// request, but a genuinely different location (the customer moved, or picked a different address)
+// gets its own fresh fetch instead of silently reusing stale-location ETAs. Rounded to ~100m
+// (3 decimal places) so ordinary GPS jitter doesn't fragment the cache into near-duplicate entries.
+const listCache = new Map<string, Promise<Restaurant[]>>()
+
+function listCacheKey(latitude?: number, longitude?: number): string {
+  if (latitude === undefined || longitude === undefined) return 'none'
+  return `${latitude.toFixed(3)},${longitude.toFixed(3)}`
+}
 
 export const restaurantService = {
-  async list(): Promise<Restaurant[]> {
-    if (!listCache) {
-      listCache = (async () => {
+  async list(coords?: { latitude: number; longitude: number }): Promise<Restaurant[]> {
+    const key = listCacheKey(coords?.latitude, coords?.longitude)
+    if (!listCache.has(key)) {
+      const promise = (async () => {
         if (IS_MOCK) {
           await mockDelay()
           return restaurants.filter((r) => r.isActive && r.isAccepted)
         }
-        const { data } = await apiClient.get<{ data: LiveRestaurantSummary[] }>('/restaurants')
+        const params = coords ? { lat: coords.latitude, lng: coords.longitude } : undefined
+        const { data } = await apiClient.get<{ data: LiveRestaurantSummary[] }>('/restaurants', { params })
         return data.data.map(mapLive)
       })()
-      listCache.catch(() => {
-        listCache = null
+      promise.catch(() => {
+        listCache.delete(key)
       })
+      listCache.set(key, promise)
     }
-    return listCache
+    return listCache.get(key)!
   },
 
   async search(query: string): Promise<Restaurant[]> {

@@ -6,6 +6,7 @@ import { useAsync } from '@/hooks/useAsync'
 import { restaurantService } from '@/services/restaurantService'
 import { couponService } from '@/services/couponService'
 import { useAppConfig } from '@/context/AppConfigContext'
+import { useActiveLocationCoords } from '@/hooks/useActiveLocationCoords'
 import { columnLayoutClass } from '@/lib/columnLayout'
 import { selectTopPicks } from '@/lib/topPicks'
 import { classNames } from '@/lib/format'
@@ -13,7 +14,8 @@ import { classNames } from '@/lib/format'
 /** "See all" destination for the Home page's Top Picks slider — same selectTopPicks selection, just uncapped (well, a generous cap) and shown as a full grid instead of a horizontal strip. */
 export default function TopPicksPage() {
   const config = useAppConfig()
-  const { data: restaurants, isLoading } = useAsync(() => restaurantService.list(), [])
+  const coords = useActiveLocationCoords()
+  const { data: restaurants, isLoading } = useAsync(() => restaurantService.list(coords ?? undefined), [coords])
   const { data: coupons } = useAsync(() => couponService.listGlobal(), [])
 
   const topPicks = useMemo(() => selectTopPicks(restaurants ?? [], 30), [restaurants])
