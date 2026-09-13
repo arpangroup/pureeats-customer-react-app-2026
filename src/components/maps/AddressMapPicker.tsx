@@ -1,6 +1,5 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react'
-import { Autocomplete, GoogleMap, MarkerF } from '@react-google-maps/api'
-import { Search } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { GoogleMap, MarkerF } from '@react-google-maps/api'
 import { useGoogleMaps } from '@/lib/googleMaps'
 import { IS_DEV } from '@/config/env'
 import { OsmMapPicker } from './OsmMapPicker'
@@ -16,6 +15,44 @@ interface AddressMapPickerProps {
 }
 
 /**
+ * google.maps.places.Autocomplete (what this used to wrap) is deprecated for new customers as of
+ * March 2025 in favor of google.maps.places.PlaceAutocompleteElement — a plain custom element with
+ * no React binding yet in @react-google-maps/api v2.20, so it's created and attached imperatively
+ * here, the same way OsmMapPicker manages its Leaflet map by ref. It renders its own search icon,
+ * input and results dropdown (no `.input` wrapper/icon of our own needed), and fires `gmp-select`
+ * with `event.placePrediction` — not `event.place`, despite what the installed @types/google.maps
+ * (still describing an older beta shape) claims; verified against the actual loaded API.
+ */
+function PlaceSearchBox({ onPlaceSelected, tall }: { onPlaceSelected: (place: google.maps.places.Place) => void; tall?: boolean }) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const onPlaceSelectedRef = useRef(onPlaceSelected)
+  onPlaceSelectedRef.current = onPlaceSelected
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const element = new google.maps.places.PlaceAutocompleteElement()
+    element.style.width = '100%'
+    container.appendChild(element)
+
+    function handleSelect(event: Event) {
+      const { placePrediction } = event as unknown as { placePrediction: google.maps.places.PlacePrediction | null }
+      if (!placePrediction) return
+      const place = placePrediction.toPlace()
+      place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] }).then(() => onPlaceSelectedRef.current(place))
+    }
+    element.addEventListener('gmp-select', handleSelect)
+
+    return () => {
+      element.removeEventListener('gmp-select', handleSelect)
+      container.removeChild(element)
+    }
+  }, [])
+
+  return <div ref={containerRef} className={tall ? 'w-full rounded-xl bg-white shadow-md dark:bg-slate-900' : 'w-full'} />
+}
+
+/**
  * A draggable-pin map with a place search box — used by the address form. Dragging the pin (or
  * picking a search result) reverse-geocodes to a formatted address via the callback.
  *
@@ -26,7 +63,6 @@ interface AddressMapPickerProps {
 export function AddressMapPicker({ latitude, longitude, onChange, overlay, tall }: AddressMapPickerProps) {
   const { isLoaded, wantsGoogle } = useGoogleMaps()
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null)
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
   const mapContainerStyle = { width: '100%', height: tall ? '380px' : '220px', borderRadius: tall ? '0' : '12px' }
 
   const reverseGeocode = useCallback((lat: number, lng: number) => {
@@ -44,16 +80,15 @@ export function AddressMapPicker({ latitude, longitude, onChange, overlay, tall 
     if (lat !== undefined && lng !== undefined) reverseGeocode(lat, lng)
   }
 
-  function handlePlaceChanged() {
-    const place = autocompleteRef.current?.getPlace()
-    const location = place?.geometry?.location
+  function handlePlaceSelected(place: google.maps.places.Place) {
+    const location = place.location
     if (!location) return
     const lat = location.lat()
     const lng = location.lng()
-    if (IS_DEV) console.log('[AddressMapPicker] Google place picked', { lat, lng }, '→', place?.formatted_address, place)
+    if (IS_DEV) console.log('[AddressMapPicker] Google place picked', { lat, lng }, '→', place.formattedAddress, place)
     mapInstance?.panTo({ lat, lng })
     mapInstance?.setZoom(16)
-    onChange({ latitude: lat, longitude: lng }, place?.formatted_address, place?.name)
+    onChange({ latitude: lat, longitude: lng }, place.formattedAddress ?? undefined, place.displayName ?? undefined)
   }
 
   // Google renders whenever a key is actually configured and loads successfully - OSM is the
@@ -61,14 +96,7 @@ export function AddressMapPicker({ latitude, longitude, onChange, overlay, tall 
   if (!wantsGoogle) return <OsmMapPicker latitude={latitude} longitude={longitude} onChange={onChange} overlay={overlay} tall={tall} />
   if (!isLoaded) return <div className="flex h-[220px] items-center justify-center text-xs text-slate-400">Loading map…</div>
 
-  const searchBox = (
-    <Autocomplete onLoad={(a) => (autocompleteRef.current = a)} onPlaceChanged={handlePlaceChanged}>
-      <div className={tall ? 'input flex items-center gap-2 bg-white shadow-md dark:bg-slate-900' : 'input flex items-center gap-2'}>
-        <Search size={15} className="shrink-0 text-slate-400" />
-        <input placeholder="Search a place to center the map" className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400" />
-      </div>
-    </Autocomplete>
-  )
+  const searchBox = <PlaceSearchBox onPlaceSelected={handlePlaceSelected} tall={tall} />
 
   const map = (
     <GoogleMap
