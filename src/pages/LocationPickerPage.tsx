@@ -40,12 +40,13 @@ interface PendingPoint {
 export default function LocationPickerPage() {
   const navigate = useNavigate()
   const { user, isAuthenticated } = useAuth()
-  const { activeAddress, detectedLocations, setActiveAddress, setDetectedLocation } = useActiveLocation()
+  const { activeAddress, detectedLocations, pickedLocation, setActiveAddress, setPickedLocation } = useActiveLocation()
 
   // Opens already centered on wherever the app currently considers "here", instead of a hardcoded
-  // default — same priority a fresh detected location would resolve to (saved address first, then
-  // GPS, then IP), computed once from whatever's already in context at mount time.
+  // default — same priority resolveActiveLocationLines uses (an explicit pick first, then saved
+  // address, then GPS, then IP), computed once from whatever's already in context at mount time.
   const initialPoint = useMemo<PendingPoint | null>(() => {
+    if (pickedLocation) return { latitude: pickedLocation.latitude, longitude: pickedLocation.longitude, label: pickedLocation.label, title: pickedLocation.title }
     if (activeAddress) {
       return {
         latitude: activeAddress.latitude,
@@ -92,19 +93,22 @@ export default function LocationPickerPage() {
   // location" again for somewhere they'd already picked once.
   function pickRecent(recent: RecentLocation) {
     const point: PendingPoint = { latitude: recent.latitude, longitude: recent.longitude, label: recent.label, title: recent.title }
-    setDetectedLocation('gps', point)
+    setPickedLocation(point)
     addRecentLocation(point)
     navigate(-1)
   }
 
+  // Choosing a saved address supersedes any earlier manual pick - otherwise pickedLocation (which
+  // outranks activeAddress in resolveActiveLocationLines) would keep shadowing it.
   function chooseSavedAddress(address: Address) {
+    setPickedLocation(null)
     setActiveAddress(address)
     navigate(-1)
   }
 
   function handleConfirm() {
     if (!pending) return
-    setDetectedLocation('gps', pending)
+    setPickedLocation(pending)
     addRecentLocation(pending)
     setRecents(getRecentLocations())
     navigate(-1)

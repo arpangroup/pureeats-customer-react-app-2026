@@ -21,6 +21,11 @@ export function extractPrimaryLocality(fullAddress: string): string | null {
 interface ResolveActiveLocationLabelArgs {
   activeAddress: Address | null
   detectedLocations: Partial<Record<DetectedLocationSource, DetectedLocation>>
+  /** A location explicitly confirmed on the location picker — outranks everything else in
+   * sourcePriority, since it's a deliberate, standing choice rather than a background best-effort
+   * guess (same reasoning `activeAddress` would get top billing, but not gated behind sourcePriority
+   * containing 'saved', since a guest with no saved addresses can still have one). */
+  pickedLocation: DetectedLocation | null
   /** Which sources to try, in order — the caller passes AppConfig's authenticated/guest priority list (already resolved to a default if the backend config hasn't loaded), so this function stays a pure, backend-agnostic reducer. */
   sourcePriority: LocationSource[]
   fallbackLabel: string
@@ -32,7 +37,13 @@ export function resolveActiveLocationLabel(args: ResolveActiveLocationLabelArgs)
 }
 
 /** Same priority walk as {@link resolveActiveLocationLabel}, but split into a short primary line (a tag like "Home", or "Current location") and a fuller secondary line (the actual address/place text) — for UI that shows the active location across two lines instead of one truncated string. `secondary` is null when there's nothing more specific than the primary line to show (e.g. the plain fallback). */
-export function resolveActiveLocationLines({ activeAddress, detectedLocations, sourcePriority, fallbackLabel }: ResolveActiveLocationLabelArgs): { primary: string; secondary: string | null } {
+export function resolveActiveLocationLines({ activeAddress, detectedLocations, pickedLocation, sourcePriority, fallbackLabel }: ResolveActiveLocationLabelArgs): { primary: string; secondary: string | null } {
+  if (pickedLocation) {
+    return {
+      primary: pickedLocation.title ?? extractPrimaryLocality(pickedLocation.label) ?? 'Selected location',
+      secondary: pickedLocation.label,
+    }
+  }
   for (const source of sourcePriority) {
     if (source === 'saved' && activeAddress) {
       return {
