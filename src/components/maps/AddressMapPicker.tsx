@@ -74,7 +74,11 @@ export function AddressMapPicker({ latitude, longitude, onChange, overlay, tall 
       zoom={16}
       onLoad={setMapInstance}
       onClick={handleLatLngChange}
-      options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false, zoomControl: false }}
+      // 'greedy' — plain one-finger drag to pan and a bare scroll-wheel to zoom, no Ctrl/two-finger
+      // gesture required. Google's own default ('cooperative') exists to stop a map from trapping
+      // page-scroll when it's embedded low in a long scrolling page, but this map is the whole
+      // point of the screen it's on, so that trade-off doesn't apply here.
+      options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false, zoomControl: false, gestureHandling: 'greedy' }}
     >
       <Marker position={{ lat: latitude, lng: longitude }} draggable onDragEnd={handleLatLngChange} />
     </GoogleMap>

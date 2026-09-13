@@ -20,7 +20,14 @@ export function OrderTrackingMap({ restaurant, destination, status, tall }: { re
   const bounds = { lat: (restaurant.lat + destination.lat) / 2, lng: (restaurant.lng + destination.lng) / 2 }
 
   return (
-    <GoogleMap mapContainerStyle={mapContainerStyle} center={bounds} zoom={13} options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false, zoomControl: false }}>
+    <GoogleMap
+      mapContainerStyle={mapContainerStyle}
+      center={bounds}
+      zoom={13}
+      // 'greedy' — same reasoning as AddressMapPicker: plain drag/scroll instead of requiring
+      // Ctrl+scroll or two fingers to zoom.
+      options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false, zoomControl: false, gestureHandling: 'greedy' }}
+    >
       <Polyline path={[restaurant, destination]} options={{ strokeColor: '#f2612c', strokeOpacity: 0.5, strokeWeight: 3, icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.7 }, offset: '0', repeat: '12px' }] }} />
       <Marker position={restaurant} label={{ text: '🍴', fontSize: '16px' }} />
       <Marker position={destination} label={{ text: '📍', fontSize: '16px' }} />
