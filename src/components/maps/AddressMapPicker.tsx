@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react'
-import { Autocomplete, GoogleMap, Marker } from '@react-google-maps/api'
+import { Autocomplete, GoogleMap, MarkerF } from '@react-google-maps/api'
 import { Search } from 'lucide-react'
 import { useGoogleMaps } from '@/lib/googleMaps'
+import { IS_DEV } from '@/config/env'
 import { OsmMapPicker } from './OsmMapPicker'
 
 interface AddressMapPickerProps {
@@ -31,6 +32,7 @@ export function AddressMapPicker({ latitude, longitude, onChange, overlay, tall 
   const reverseGeocode = useCallback((lat: number, lng: number) => {
     if (!window.google) return
     new google.maps.Geocoder().geocode({ location: { lat, lng } }, (results, status) => {
+      if (IS_DEV) console.log('[AddressMapPicker] Google reverse geocode', { lat, lng, status }, '→', results)
       onChange({ latitude: lat, longitude: lng }, status === 'OK' ? results?.[0]?.formatted_address : undefined)
     })
   }, [onChange])
@@ -48,6 +50,7 @@ export function AddressMapPicker({ latitude, longitude, onChange, overlay, tall 
     if (!location) return
     const lat = location.lat()
     const lng = location.lng()
+    if (IS_DEV) console.log('[AddressMapPicker] Google place picked', { lat, lng }, '→', place?.formatted_address, place)
     mapInstance?.panTo({ lat, lng })
     mapInstance?.setZoom(16)
     onChange({ latitude: lat, longitude: lng }, place?.formatted_address)
@@ -80,7 +83,11 @@ export function AddressMapPicker({ latitude, longitude, onChange, overlay, tall 
       // point of the screen it's on, so that trade-off doesn't apply here.
       options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false, zoomControl: false, gestureHandling: 'greedy' }}
     >
-      <Marker position={{ lat: latitude, lng: longitude }} draggable onDragEnd={handleLatLngChange} />
+      {/* MarkerF, not the class-based Marker - the latter silently never attached a visible pin
+          to the map (constructed without throwing, per its own deprecation warning, but no
+          gstatic marker-icon request ever fired and nothing appeared) on every map mounted via
+          client-side navigation rather than a full page load; MarkerF doesn't have that problem. */}
+      <MarkerF position={{ lat: latitude, lng: longitude }} draggable onDragEnd={handleLatLngChange} />
     </GoogleMap>
   )
 

@@ -20,6 +20,9 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localho
 
 export const MOCK_DELAY_MS = Number(import.meta.env.VITE_MOCK_DELAY_MS ?? 350)
 
+/** True for `vite dev`/`dev:uat` (any local dev server), false for a real `vite build` — Vite's own built-in flag, distinct from IS_MOCK (mock vs. live data can vary independently of dev vs. production). Gates debug-only console output, e.g. reverse-geocode results, that should never ship to production. */
+export const IS_DEV = import.meta.env.DEV
+
 /** Google Maps JavaScript API key (Maps JavaScript API + Places API + Geocoding API enabled, billing on). Add it to a gitignored .env.local — never commit a real key. When empty, the address picker and order-tracking map fall back to a free OpenStreetMap view instead. */
 export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
 

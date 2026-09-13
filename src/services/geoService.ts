@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/apiClient'
-import { IS_MOCK } from '@/config/env'
+import { IS_MOCK, IS_DEV } from '@/config/env'
 
 export interface IpLocation {
   latitude: number | null
@@ -43,8 +43,10 @@ export const geoService = {
     }
     try {
       const { data } = await apiClient.get<{ data: ReverseGeocodeResult }>('/geo/reverse-geocode', { params: { lat: latitude, lon: longitude } })
+      if (IS_DEV) console.log('[geoService.reverseGeocode]', { latitude, longitude }, '→', data.data)
       return data.data
-    } catch {
+    } catch (err) {
+      if (IS_DEV) console.warn('[geoService.reverseGeocode] failed', { latitude, longitude }, err)
       return { displayName: null, city: null, state: null, country: null, postcode: null }
     }
   },

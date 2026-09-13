@@ -1,4 +1,4 @@
-import { GoogleMap, Marker, Polyline } from '@react-google-maps/api'
+import { GoogleMap, MarkerF, Polyline } from '@react-google-maps/api'
 import { useGoogleMaps } from '@/lib/googleMaps'
 import { OsmOrderTrackingMap } from './OsmOrderTrackingMap'
 import { lerp, useRiderProgress, type LatLng } from '@/lib/orderTrackingProgress'
@@ -29,9 +29,9 @@ export function OrderTrackingMap({ restaurant, destination, status, tall }: { re
       options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false, zoomControl: false, gestureHandling: 'greedy' }}
     >
       <Polyline path={[restaurant, destination]} options={{ strokeColor: '#f2612c', strokeOpacity: 0.5, strokeWeight: 3, icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.7 }, offset: '0', repeat: '12px' }] }} />
-      <Marker position={restaurant} label={{ text: '🍴', fontSize: '16px' }} />
-      <Marker position={destination} label={{ text: '📍', fontSize: '16px' }} />
-      {showRider && status !== 'DELIVERED' && <Marker position={riderPosition} label={{ text: '🛵', fontSize: '16px' }} />}
+      <MarkerF position={restaurant} label={{ text: '🍴', fontSize: '16px' }} />
+      <MarkerF position={destination} label={{ text: '📍', fontSize: '16px' }} />
+      {showRider && status !== 'DELIVERED' && <MarkerF position={riderPosition} label={{ text: '🛵', fontSize: '16px' }} />}
     </GoogleMap>
   )
 }

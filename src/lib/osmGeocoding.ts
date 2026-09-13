@@ -6,6 +6,8 @@
  * paid geocoder before any real production traffic.
  */
 
+import { IS_DEV } from '@/config/env'
+
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org'
 
 export interface OsmPlaceResult {
@@ -19,10 +21,15 @@ export async function osmReverseGeocode(lat: number, lng: number): Promise<strin
     const res = await fetch(`${NOMINATIM_BASE}/reverse?format=jsonv2&lat=${lat}&lon=${lng}`, {
       headers: { Accept: 'application/json' },
     })
-    if (!res.ok) return undefined
+    if (!res.ok) {
+      if (IS_DEV) console.warn('[osmReverseGeocode] request failed', { lat, lng, status: res.status })
+      return undefined
+    }
     const data = await res.json()
+    if (IS_DEV) console.log('[osmReverseGeocode]', { lat, lng }, '→', data)
     return typeof data?.display_name === 'string' ? data.display_name : undefined
-  } catch {
+  } catch (err) {
+    if (IS_DEV) console.warn('[osmReverseGeocode] threw', { lat, lng }, err)
     return undefined
   }
 }
