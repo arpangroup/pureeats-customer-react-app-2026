@@ -11,6 +11,8 @@ export interface OrderPricing {
   tax: number
   restaurantCharge: number
   deliveryCharge: number
+  /** Always 0 in this client-side fallback estimate — the real, admin-configurable value only ever comes back from the live cart-validation/order response, same as tax's percentage isn't computed here either. */
+  platformFee: number
   discountAmount: number
   total: number
   payable: number
@@ -25,5 +27,5 @@ export function estimateOrderPricing(itemTotal: number, restaurant: Restaurant |
   const discountAmount = coupon?.waivesDelivery ? rawDeliveryCharge : coupon?.discountAmount ?? 0
   const total = itemTotal + tax + restaurantCharge - (coupon?.waivesDelivery ? 0 : coupon?.discountAmount ?? 0)
   const payable = total + deliveryCharge + driverTipAmount
-  return { itemTotal, tax, restaurantCharge, deliveryCharge, discountAmount, total, payable }
+  return { itemTotal, tax, restaurantCharge, deliveryCharge, platformFee: 0, discountAmount, total, payable }
 }

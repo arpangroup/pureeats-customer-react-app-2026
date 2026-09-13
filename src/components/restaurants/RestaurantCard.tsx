@@ -2,14 +2,14 @@ import { Link } from 'react-router-dom'
 import { Heart, Star } from 'lucide-react'
 import type { Coupon, Restaurant } from '@/types/entities'
 import { useFavorites } from '@/hooks/useFavorites'
-import { bestCouponBadge, DEFAULT_COUPON_BADGE } from '@/lib/couponBadge'
+import { bestCouponBadge, restaurantOfferBadge } from '@/lib/couponBadge'
 import { isRestaurantOrderable } from '@/lib/restaurantAvailability'
 import { classNames } from '@/lib/format'
 
 export function RestaurantCard({ restaurant, coupons = [] }: { restaurant: Restaurant; coupons?: Coupon[] }) {
   const { isFavorite, toggleFavorite } = useFavorites()
   const favorite = isFavorite(restaurant.id)
-  const badge = bestCouponBadge(coupons, restaurant.id) ?? DEFAULT_COUPON_BADGE
+  const badge = bestCouponBadge(coupons, restaurant.id) ?? restaurantOfferBadge(restaurant)
   const area = restaurant.landmark || restaurant.address
   // Still fully browsable when closed (tapping through to see the menu/hours is normal) — just
   // visually dimmed everywhere this card renders (Home, Search, category listing, Top Picks,
@@ -50,10 +50,12 @@ export function RestaurantCard({ restaurant, coupons = [] }: { restaurant: Resta
           </div>
         )}
 
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3 pb-2.5 pt-10">
-          <p className="text-base font-extrabold leading-tight text-white">{badge.headline}</p>
-          {badge.subline && <p className="text-[11px] font-medium leading-tight text-white/80">{badge.subline}</p>}
-        </div>
+        {badge && (
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3 pb-2.5 pt-10">
+            <p className="text-base font-extrabold leading-tight text-white">{badge.headline}</p>
+            {badge.subline && <p className="text-[11px] font-medium leading-tight text-white/80">{badge.subline}</p>}
+          </div>
+        )}
       </div>
       <div className={classNames('pt-2.5', !orderable && 'opacity-60')}>
         <h3 className="truncate text-[15px] font-semibold text-slate-800 dark:text-slate-100">{restaurant.name}</h3>

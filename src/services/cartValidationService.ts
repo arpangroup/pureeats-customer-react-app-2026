@@ -19,6 +19,7 @@ export interface CartValidationResult {
     deliveryCharge: number
     deliveryChargeBasis: string
     distanceKm: number
+    platformFee: number
     payable: number
   }
   anyUnavailable: boolean

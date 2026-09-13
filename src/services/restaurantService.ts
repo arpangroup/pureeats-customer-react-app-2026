@@ -62,6 +62,8 @@ interface LiveRestaurantSummary {
   closingTime: string
   isFeatured: boolean
   openStatus: RestaurantOpenStatus
+  offerDiscountPercent: number | null
+  offerMaxDiscount: string | null
 }
 
 interface LiveRestaurantDetail extends LiveRestaurantSummary {
@@ -114,6 +116,8 @@ function mapLive(d: LiveRestaurantSummary | LiveRestaurantDetail): Restaurant {
     certificate: detail.certificate ?? null,
     categoryIds: [],
     openStatus: d.openStatus,
+    offerDiscountPercent: d.offerDiscountPercent ?? null,
+    offerMaxDiscount: d.offerMaxDiscount != null ? toNumber(d.offerMaxDiscount) : null,
   }
 }
 

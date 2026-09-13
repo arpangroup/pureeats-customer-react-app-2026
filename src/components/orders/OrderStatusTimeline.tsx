@@ -1,8 +1,8 @@
 import { Check } from 'lucide-react'
 import { classNames, formatDate } from '@/lib/format'
-import type { OrderStatus, OrderTimeline } from '@/types/entities'
+import type { OrderDeliveryType, OrderStatus, OrderTimeline } from '@/types/entities'
 
-const STEPS: { status: OrderStatus; label: string; field: keyof OrderTimeline }[] = [
+const DELIVERY_STEPS: { status: OrderStatus; label: string; field: keyof OrderTimeline }[] = [
   { status: 'PLACED', label: 'Order placed', field: 'placedAt' },
   { status: 'RESTAURANT_ACCEPTED', label: 'Restaurant accepted', field: 'restaurantAcceptedAt' },
   { status: 'READY_FOR_PICKUP', label: 'Ready for pickup', field: 'restaurantReadyAt' },
@@ -11,7 +11,26 @@ const STEPS: { status: OrderStatus; label: string; field: keyof OrderTimeline }[
   { status: 'DELIVERED', label: 'Delivered', field: 'deliveredAt' },
 ]
 
-export function OrderStatusTimeline({ timeline, currentStatus }: { timeline: OrderTimeline; currentStatus: OrderStatus }) {
+// A self-pickup order never gets a rider - the backend's own status flow for one skips straight
+// from READY_FOR_PICKUP to SELF_PICKUP_COMPLETED (see OrderStatusCode's javadoc), so the timeline
+// must branch on the order's deliveryType, not on whichever status it happens to be at right now
+// (RIDER_ASSIGNED/PICKED_UP/DELIVERED never fire for self-pickup at all).
+const SELF_PICKUP_STEPS: { status: OrderStatus; label: string; field: keyof OrderTimeline }[] = [
+  { status: 'PLACED', label: 'Order placed', field: 'placedAt' },
+  { status: 'RESTAURANT_ACCEPTED', label: 'Restaurant accepted', field: 'restaurantAcceptedAt' },
+  { status: 'READY_FOR_PICKUP', label: 'Ready for pickup', field: 'restaurantReadyAt' },
+  { status: 'SELF_PICKUP_COMPLETED', label: 'Picked up', field: 'selfPickupCompletedAt' },
+]
+
+export function OrderStatusTimeline({
+  timeline,
+  currentStatus,
+  deliveryType,
+}: {
+  timeline: OrderTimeline
+  currentStatus: OrderStatus
+  deliveryType: OrderDeliveryType
+}) {
   if (currentStatus === 'CANCELLED') {
     return (
       <div className="flex items-center gap-3 rounded-xl bg-rose-50 px-4 py-3 dark:bg-rose-500/10">
@@ -24,9 +43,7 @@ export function OrderStatusTimeline({ timeline, currentStatus }: { timeline: Ord
     )
   }
 
-  const steps = currentStatus === 'SELF_PICKUP_COMPLETED'
-    ? [{ status: 'PLACED' as OrderStatus, label: 'Order placed', field: 'placedAt' as const }, { status: 'SELF_PICKUP_COMPLETED' as OrderStatus, label: 'Picked up', field: 'selfPickupCompletedAt' as const }]
-    : STEPS
+  const steps = deliveryType === 'SELF_PICKUP' ? SELF_PICKUP_STEPS : DELIVERY_STEPS
 
   return (
     <ol>

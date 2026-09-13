@@ -6,7 +6,7 @@ import { restaurantService } from '@/services/restaurantService'
 import { couponService } from '@/services/couponService'
 import { menuService } from '@/services/menuService'
 import { promoSliderService } from '@/services/promoSliderService'
-import { useActiveLocationLabel } from '@/hooks/useActiveLocationLabel'
+import { useActiveLocationLines } from '@/hooks/useActiveLocationLines'
 import { useAppConfig } from '@/context/AppConfigContext'
 import { RestaurantCard } from '@/components/restaurants/RestaurantCard'
 import { RecommendedItemCard } from '@/components/home/RecommendedItemCard'
@@ -20,7 +20,7 @@ import { classNames } from '@/lib/format'
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const locationLabel = useActiveLocationLabel()
+  const locationLines = useActiveLocationLines()
   const config = useAppConfig()
   const { data: restaurants, isLoading } = useAsync(() => restaurantService.list(), [])
   const { data: categories } = useAsync(
@@ -48,10 +48,17 @@ export default function HomePage() {
   return (
     <div className="bg-white dark:bg-slate-950">
       <div className="sticky top-0 z-20 border-b border-slate-200 bg-white px-4 py-3 pt-safe dark:border-slate-800 dark:bg-slate-900 md:hidden">
-        <button onClick={() => navigate('/profile/addresses')} className="flex items-center gap-1.5 text-sm font-semibold text-slate-800 dark:text-slate-100">
-          <MapPin size={16} className="text-brand-600" />
-          <span className="max-w-[220px] truncate">{locationLabel}</span>
-          <ChevronDown size={14} className="text-slate-400" />
+        <button onClick={() => navigate('/location')} className="flex w-full items-start gap-1.5 text-left">
+          <MapPin size={16} className="mt-0.5 shrink-0 text-brand-600" />
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-1">
+              <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{locationLines.primary}</span>
+              <ChevronDown size={14} className="shrink-0 text-slate-400" />
+            </span>
+            {locationLines.secondary && (
+              <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{locationLines.secondary}</span>
+            )}
+          </span>
         </button>
         <button onClick={() => navigate('/search')} className="input mt-2.5 flex items-center gap-2 text-left text-sm text-slate-400">
           <Search size={16} className="shrink-0" />

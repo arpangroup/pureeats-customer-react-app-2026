@@ -1,13 +1,27 @@
 import { formatCurrency } from '@/lib/format'
-import type { Coupon } from '@/types/entities'
+import type { Coupon, Restaurant } from '@/types/entities'
 
 export interface CouponBadge {
   headline: string
   subline: string | null
 }
 
-/** Shown when no coupon data applies to a card yet (backend hasn't returned any, or none exist) — keeps every card's layout consistent instead of some cards having a badge and others not. */
-export const DEFAULT_COUPON_BADGE: CouponBadge = { headline: '0% OFF', subline: `UPTO ${formatCurrency(100)}` }
+/**
+ * Falls back to the restaurant's own admin/store-owner-set promo badge (`offerDiscountPercent`/
+ * `offerMaxDiscount` — independent of any real Coupon) when no applicable coupon exists. Returns
+ * null — meaning no badge renders at all — when neither is set, rather than a generic placeholder
+ * like "0% OFF" that reads as a real (and untrue) offer.
+ */
+export function restaurantOfferBadge(restaurant: Pick<Restaurant, 'offerDiscountPercent' | 'offerMaxDiscount'>): CouponBadge | null {
+  const { offerDiscountPercent, offerMaxDiscount } = restaurant
+  if (offerDiscountPercent) {
+    return { headline: `${offerDiscountPercent}% OFF`, subline: offerMaxDiscount ? `UPTO ${formatCurrency(offerMaxDiscount)}` : null }
+  }
+  if (offerMaxDiscount) {
+    return { headline: `UPTO ${formatCurrency(offerMaxDiscount)} OFF`, subline: null }
+  }
+  return null
+}
 
 /**
  * The discount badge shown on a restaurant card's image (gradient overlay, bottom-left) — mirrors

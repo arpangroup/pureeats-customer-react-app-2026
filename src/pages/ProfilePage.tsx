@@ -32,16 +32,17 @@ export default function ProfilePage() {
       <PageHeader title="Profile" />
       <div className="mx-auto max-w-lg px-4 py-4 md:py-8">
         {isAuthenticated ? (
-          <div className="card flex items-center gap-3 p-4">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-100 text-lg font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-400">
-              {user ? initials(user.name) : '?'}
+          <Link to="/profile/edit" className="card flex items-center gap-3 p-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-lg font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-400">
+              {user?.photo ? <img src={user.photo} alt={user.name} className="h-full w-full object-cover" /> : user ? initials(user.name) : '?'}
             </span>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-base font-semibold text-slate-800 dark:text-slate-100">{user?.name}</p>
               <p className="truncate text-sm text-slate-500 dark:text-slate-400">{user?.email}</p>
               {user?.phone && <p className="truncate text-xs text-slate-400 dark:text-slate-500">{user.phone}</p>}
             </div>
-          </div>
+            <ChevronRight size={16} className="shrink-0 text-slate-300" />
+          </Link>
         ) : (
           <div className="card flex items-center gap-3 p-4">
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">

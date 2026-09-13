@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { Banknote, CheckCircle2, Smartphone, Wallet } from 'lucide-react'
+import { Banknote, CheckCircle2, CreditCard, Smartphone, Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/ui/Feedback'
 import { classNames, formatCurrency } from '@/lib/format'
-import { estimateOrderPricing } from '@/lib/pricing'
+import { estimateOrderPricing, type OrderPricing } from '@/lib/pricing'
 import { useCart } from '@/hooks/useCart'
 import { useAuth } from '@/hooks/useAuth'
 import { useActiveLocation } from '@/hooks/useLocation'
 import { useAsync } from '@/hooks/useAsync'
+import { useCartValidation } from '@/hooks/useCartValidation'
 import { restaurantService } from '@/services/restaurantService'
 import { orderService, type PlaceOrderInput } from '@/services/orderService'
 import { walletService } from '@/services/walletService'
@@ -16,13 +17,10 @@ import { paymentService } from '@/services/paymentService'
 import { buildUpiLaunchUrl, isMobileDevice } from '@/lib/upi'
 import { loadRazorpayCheckoutScript, openRazorpayCheckout, type RazorpayPaymentResult } from '@/lib/razorpay'
 import { useAppConfig } from '@/context/AppConfigContext'
+import { paymentGatewayService, isKnownPaymentMode } from '@/services/paymentGatewayService'
 import type { PaymentMode } from '@/types/entities'
 
-const PAYMENT_OPTIONS: { mode: PaymentMode; label: string; icon: typeof Banknote; description: string }[] = [
-  { mode: 'COD', label: 'Cash on Delivery', icon: Banknote, description: 'Pay when your order arrives' },
-  { mode: 'WALLET', label: 'PureEats Wallet', icon: Wallet, description: 'Pay using your wallet balance' },
-  { mode: 'UPI', label: 'UPI', icon: Smartphone, description: 'Pay via GPay, PhonePe, Paytm & more' },
-]
+const ICON_BY_MODE: Record<PaymentMode, typeof Banknote> = { COD: Banknote, WALLET: Wallet, UPI: Smartphone, RAZORPAY: CreditCard }
 
 /** Combines the two separate Cart-page notes into the single orderComment field the backend accepts. */
 function buildOrderComment(cookingNote: string, deliveryInstructions: string): string | null {
@@ -51,20 +49,39 @@ export default function CheckoutPage() {
 
   const { data: restaurant } = useAsync(() => (cart.restaurantId ? restaurantService.get(cart.restaurantId) : Promise.resolve(undefined)), [cart.restaurantId])
   const { data: walletBalance } = useAsync(() => (user ? walletService.balance(user.id) : Promise.resolve(0)), [user?.id])
-  const { enabledPaymentMethods, razorpayKeyId } = useAppConfig()
+  const { result: validation } = useCartValidation()
+  const { razorpayKeyId } = useAppConfig()
   const razorpayConfigured = !!razorpayKeyId
-  // Empty list means the admin hasn't restricted anything — show every option, same as before this existed.
-  const paymentOptions = (enabledPaymentMethods.length === 0
-    ? PAYMENT_OPTIONS
-    : PAYMENT_OPTIONS.filter((o) => enabledPaymentMethods.includes(o.mode))
-  ).filter((o) => o.mode !== 'COD' || restaurant?.isAcceptCod !== false)
+  // Admin-controlled via Settings → Payment gateways (GET /payment-gateways, active-only) — every
+  // active gateway shows here, whether or not it has a real checkout flow yet (a code the customer
+  // app recognizes). One without a match (Stripe/PayPal/...) renders disabled, "Not supported yet".
+  // Razorpay is genuinely implemented, so it gets a different reason when disabled: "Not configured
+  // yet" until an admin sets a key (Settings → Payment Gateways → Razorpay), not "not supported".
+  const { data: gateways } = useAsync(() => paymentGatewayService.list(), [])
+  const paymentOptions = (gateways ?? [])
+    .map((g) => {
+      const known = isKnownPaymentMode(g.code)
+      const disabledReason = !known ? 'Not supported yet' : g.code === 'RAZORPAY' && !razorpayConfigured ? 'Not configured yet' : null
+      return {
+        mode: g.code,
+        label: g.name,
+        description: g.description,
+        icon: known ? ICON_BY_MODE[g.code] : CreditCard,
+        supported: disabledReason === null,
+        disabledReason,
+      }
+    })
+    .filter((o) => o.mode !== 'COD' || restaurant?.isAcceptCod !== false)
+
+  const supportedOptions = paymentOptions.filter((o) => o.supported)
 
   // Restaurant data (and so isAcceptCod) loads after the initial 'COD' default — swap to the first
   // still-available option rather than letting the customer submit a payment mode they can no
-  // longer see selected (or that's no longer offered at all).
+  // longer see selected (or that's no longer offered at all). Only ever lands on a supported option
+  // — an unsupported row can't be selected in the first place (see the button's disabled state below).
   useEffect(() => {
-    if (paymentOptions.length > 0 && !paymentOptions.some((o) => o.mode === paymentMode)) {
-      setPaymentMode(paymentOptions[0].mode)
+    if (supportedOptions.length > 0 && !supportedOptions.some((o) => o.mode === paymentMode)) {
+      setPaymentMode(supportedOptions[0].mode as PaymentMode)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentOptions.map((o) => o.mode).join(',')])
@@ -103,17 +120,33 @@ export default function CheckoutPage() {
     )
   }
 
-  const pricing = estimateOrderPricing(cart.subtotal, restaurant, cart.deliveryType, cart.coupon, cart.tipAmount)
+  // Same derivation as CartPage.tsx — trust the server's live-validated numbers (which correctly
+  // price dynamic/distance-based delivery charges) over the client-side flat estimate whenever a
+  // validation result is available, so Checkout can never show (or charge Razorpay) a different
+  // amount than what Cart just displayed.
+  const clientEstimate = estimateOrderPricing(cart.subtotal, restaurant, cart.deliveryType, cart.coupon, cart.tipAmount)
+  const pricing: OrderPricing = validation
+    ? {
+        itemTotal: validation.pricing.itemTotal,
+        tax: validation.pricing.tax,
+        restaurantCharge: validation.pricing.restaurantCharge,
+        deliveryCharge: validation.pricing.deliveryCharge,
+        platformFee: validation.pricing.platformFee,
+        discountAmount: validation.pricing.discountAmount,
+        total: validation.pricing.itemTotal - validation.pricing.discountAmount + validation.pricing.tax + validation.pricing.restaurantCharge,
+        payable: validation.pricing.payable + (cart.deliveryType === 'DELIVERY' ? cart.tipAmount : 0),
+      }
+    : clientEstimate
   const walletInsufficient = paymentMode === 'WALLET' && (walletBalance ?? 0) < pricing.payable
-  // Razorpay's Checkout widget IS a real UPI-capable gateway (plus cards/netbanking/wallets) — once
-  // an admin has configured a key, "UPI" opens that instead of the trust-based deep link below, on
-  // every device (the widget works on desktop too, unlike a upi:// intent).
-  const useRazorpayCheckout = paymentMode === 'UPI' && razorpayConfigured
-  const upiOnMobile = paymentMode === 'UPI' && !razorpayConfigured && isMobileDevice()
+  // UPI and Razorpay are separate, independent options now (not "UPI, upgraded to Razorpay when
+  // configured") — selecting Razorpay always opens its real Checkout widget (cards/netbanking/wallets
+  // included, works on desktop too); selecting UPI always uses the trust-based upi://pay deep link,
+  // regardless of whether Razorpay happens to be configured.
+  const useRazorpayCheckout = paymentMode === 'RAZORPAY' && razorpayConfigured
+  const upiOnMobile = paymentMode === 'UPI' && isMobileDevice()
 
   /** No payment gateway backs this — same trust model as Cash on Delivery. Opening the UPI app is
-   * real (a genuine upi://pay intent), but "did they actually pay" is the user's own confirmation.
-   * Only reached when Razorpay isn't configured — see useRazorpayCheckout above. */
+   * real (a genuine upi://pay intent), but "did they actually pay" is the user's own confirmation. */
   function handleOpenUpiApp() {
     const url = buildUpiLaunchUrl({
       amountInRupees: pricing.payable,
@@ -201,27 +234,37 @@ export default function CheckoutPage() {
         <div className="card mt-4 p-4">
           <p className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Payment method</p>
           <div className="space-y-2">
-            {paymentOptions.map(({ mode, label, icon: Icon, description }) => (
+            {paymentOptions.map(({ mode, label, icon: Icon, description, supported, disabledReason }) => (
               <button
-                key={mode}
-                onClick={() => selectPaymentMode(mode)}
+                key={mode ?? label}
+                onClick={() => supported && selectPaymentMode(mode as PaymentMode)}
+                disabled={!supported}
                 className={classNames(
                   'flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors',
-                  paymentMode === mode ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/10' : 'border-slate-200 dark:border-slate-700',
+                  !supported
+                    ? 'cursor-not-allowed border-slate-100 opacity-50 dark:border-slate-800'
+                    : paymentMode === mode
+                      ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/10'
+                      : 'border-slate-200 dark:border-slate-700',
                 )}
               >
                 <Icon size={20} className="shrink-0 text-slate-500 dark:text-slate-400" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {mode === 'WALLET' ? `Balance: ${formatCurrency(walletBalance ?? 0)}` : description}
+                  <p className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    {label}
+                    {disabledReason && (
+                      <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                        {disabledReason}
+                      </span>
+                    )}
                   </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{mode === 'WALLET' ? `Balance: ${formatCurrency(walletBalance ?? 0)}` : description}</p>
                 </div>
               </button>
             ))}
           </div>
           {walletInsufficient && <p className="mt-2 text-xs text-rose-500">Insufficient wallet balance for this order.</p>}
-          {paymentMode === 'UPI' && !razorpayConfigured && !isMobileDevice() && (
+          {paymentMode === 'UPI' && !isMobileDevice() && (
             <p className="mt-2 text-xs text-slate-400">Open checkout on your phone to pay directly from a UPI app — on desktop, order confirmation still goes through.</p>
           )}
         </div>

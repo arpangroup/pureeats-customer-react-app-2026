@@ -21,12 +21,24 @@ export type { LocationSource }
  *            docs/location-resolution/ for why. Requires the customer to grant permission.
  * 'ip'     — a coarse, city-level guess resolved server-side from the caller's IP
  *            (GET /geo/ip-location) — no permission needed, works for guests, much less precise.
+ * 'picked' — a location the customer explicitly confirmed on the location picker (map pin, search
+ *            result, or recent search) — stored client-side only (LocationContext.pickedLocation),
+ *            sticks across page loads until they pick something else, and isn't touched by
+ *            useLocationAutoDetect's background GPS/IP refresh.
  */
 export interface LocationResolutionConfig {
   /**
    * Priority order for the *displayed* label, evaluated separately per auth state since 'saved'
    * only ever applies to a logged-in customer. The first source in the list with a resolved value
    * wins, independent of which order they actually finished resolving in.
+   *
+   * This is the one place to change "always show the customer's live location" vs. "prefer
+   * whatever they last picked/saved" — no code change needed, just reorder these arrays (or the
+   * matching AppConfig.locationResolution*Priority fields once an admin sets them via
+   * PUT /api/v1/admin/app-config — see docs/location-resolution/README.md). Defaulting to
+   * gps-first here means a customer's live location always wins over a stale saved/picked one
+   * whenever the browser can actually resolve it; put 'saved'/'picked' ahead of 'gps'/'ip' instead
+   * to make an explicit choice sticky across visits.
    */
   authenticatedPriority: LocationSource[]
   guestPriority: LocationSource[]
@@ -36,8 +48,8 @@ export interface LocationResolutionConfig {
 }
 
 export const defaultLocationResolutionConfig: LocationResolutionConfig = {
-  authenticatedPriority: ['saved', 'gps', 'ip'],
-  guestPriority: ['gps', 'ip'],
+  authenticatedPriority: ['gps', 'ip', 'saved', 'picked'],
+  guestPriority: ['gps', 'ip', 'picked'],
   authenticatedFallbackLabel: 'Set your location',
   guestFallbackLabel: 'Other',
 }

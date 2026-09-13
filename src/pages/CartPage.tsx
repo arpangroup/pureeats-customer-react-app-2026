@@ -48,6 +48,20 @@ export default function CartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [validation?.coupon?.valid, validation?.coupon?.reason])
 
+  // A restaurant's deliveryType ("self-pickup" | "delivery" | "both") is its own posted setting, not
+  // something that varies by customer address — a self-pickup-only restaurant should never let
+  // "Delivery" be selected at all (previously it was always clickable regardless, so a customer could
+  // end up with a cart priced for delivery from a restaurant that never offers it, computing a
+  // delivery charge against whatever address happened to be active — nonsensical for a restaurant
+  // that only serves pickup). Restaurant data loads async, after the cart's own default of
+  // 'DELIVERY', so this corrects it the moment we learn the restaurant doesn't actually support it.
+  useEffect(() => {
+    if (restaurant && restaurant.deliveryType === 'self-pickup' && cart.deliveryType === 'DELIVERY') {
+      cart.setDeliveryType('SELF_PICKUP')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurant?.deliveryType])
+
   if (cart.lines.length === 0) {
     return (
       <div>
@@ -60,6 +74,7 @@ export default function CartPage() {
   }
 
   const canSelfPickup = restaurant?.deliveryType === 'self-pickup' || restaurant?.deliveryType === 'both'
+  const canDeliver = restaurant?.deliveryType === 'delivery' || restaurant?.deliveryType === 'both'
   const needsAddress = cart.deliveryType === 'DELIVERY'
   const clientEstimate = estimateOrderPricing(cart.subtotal, restaurant, cart.deliveryType, cart.coupon, cart.tipAmount)
 
@@ -72,6 +87,7 @@ export default function CartPage() {
         tax: validation.pricing.tax,
         restaurantCharge: validation.pricing.restaurantCharge,
         deliveryCharge: validation.pricing.deliveryCharge,
+        platformFee: validation.pricing.platformFee,
         discountAmount: validation.pricing.discountAmount,
         total: validation.pricing.itemTotal - validation.pricing.discountAmount + validation.pricing.tax + validation.pricing.restaurantCharge,
         payable: validation.pricing.payable + (cart.deliveryType === 'DELIVERY' ? cart.tipAmount : 0),
@@ -153,9 +169,10 @@ export default function CartPage() {
             {tab === 'delivery' && (
               <div className="flex gap-2">
                 <button
-                  onClick={() => cart.setDeliveryType('DELIVERY')}
+                  onClick={() => canDeliver && cart.setDeliveryType('DELIVERY')}
+                  disabled={!canDeliver}
                   className={classNames(
-                    'flex flex-1 flex-col items-center gap-1.5 rounded-xl border py-3 text-sm font-semibold',
+                    'flex flex-1 flex-col items-center gap-1.5 rounded-xl border py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40',
                     cart.deliveryType === 'DELIVERY' ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400' : 'border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300',
                   )}
                 >
@@ -224,8 +241,13 @@ export default function CartPage() {
           </div>
         )}
 
-        <div className="card mt-4 p-4">
+        <div className={classNames('card mt-4 p-4', restaurantUnavailable && 'opacity-60')}>
           <p className="mb-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200">Bill details</p>
+          {restaurantUnavailable && (
+            <p className="mb-2.5 text-xs font-medium text-rose-500">
+              This pricing won't apply until the issue above is resolved.
+            </p>
+          )}
           <div className="space-y-1.5 text-sm">
             <Row label="Item total" value={formatCurrency(pricing.itemTotal)} />
             {pricing.discountAmount > 0 && <Row label="Discount" value={`-${formatCurrency(pricing.discountAmount)}`} tone="text-emerald-600" />}
@@ -235,6 +257,7 @@ export default function CartPage() {
             )}
             <Row label="Delivery charge" value={pricing.deliveryCharge === 0 ? 'FREE' : formatCurrency(pricing.deliveryCharge)} tone={pricing.deliveryCharge === 0 ? 'text-emerald-600' : undefined} />
             {cart.tipAmount > 0 && cart.deliveryType === 'DELIVERY' && <Row label="Delivery tip" value={formatCurrency(cart.tipAmount)} />}
+            {pricing.platformFee > 0 && <Row label="Platform fee" value={formatCurrency(pricing.platformFee)} />}
             <Row label="Taxes" value={formatCurrency(pricing.tax)} />
             <div className="mt-1.5 flex items-center justify-between border-t border-slate-100 pt-1.5 text-base font-bold text-slate-800 dark:border-slate-800 dark:text-slate-100">
               <span>To pay</span>

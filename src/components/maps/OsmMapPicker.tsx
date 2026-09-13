@@ -7,7 +7,7 @@ import { osmReverseGeocode, osmSearchPlaces, type OsmPlaceResult } from '@/lib/o
 interface OsmMapPickerProps {
   latitude: number
   longitude: number
-  onChange: (coords: { latitude: number; longitude: number }, formattedAddress?: string) => void
+  onChange: (coords: { latitude: number; longitude: number }, formattedAddress?: string, title?: string) => void
   /** Rendered absolutely-positioned over the map itself (e.g. a floating "use my location" button, bottom-right) — see AddressFormPage. */
   overlay?: ReactNode
   /** Full-bleed, taller map for the address form's redesigned top-of-page layout; the compact 220px default is used elsewhere (e.g. inline pickers). */
@@ -44,11 +44,11 @@ export function OsmMapPicker({ latitude, longitude, onChange, overlay, tall }: O
   const [searching, setSearching] = useState(false)
   const [showResults, setShowResults] = useState(false)
 
-  async function movePin(lat: number, lng: number, pan: boolean) {
+  async function movePin(lat: number, lng: number, pan: boolean, title?: string) {
     markerRef.current?.setLatLng([lat, lng])
     if (pan) mapRef.current?.panTo([lat, lng])
     const address = await osmReverseGeocode(lat, lng)
-    onChangeRef.current({ latitude: lat, longitude: lng }, address)
+    onChangeRef.current({ latitude: lat, longitude: lng }, address, title)
   }
 
   useEffect(() => {
@@ -117,7 +117,7 @@ export function OsmMapPicker({ latitude, longitude, onChange, overlay, tall }: O
     setQuery(result.label)
     setShowResults(false)
     mapRef.current?.setZoom(16)
-    movePin(result.latitude, result.longitude, true)
+    movePin(result.latitude, result.longitude, true, result.title)
   }
 
   const searchBox = (

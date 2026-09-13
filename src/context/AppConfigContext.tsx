@@ -3,6 +3,7 @@ import { RefreshCw } from 'lucide-react'
 import { appConfigService, DEFAULT_DELIVERY_INSTRUCTION_OPTIONS } from '@/services/appConfigService'
 import { GOOGLE_MAPS_API_KEY, FIREBASE_CONFIG, FIREBASE_VAPID_KEY } from '@/config/env'
 import { defaultLocationResolutionConfig } from '@/config/locationResolution'
+import { GoogleMapsLoaderGate } from '@/context/GoogleMapsContext'
 import { useAuth } from '@/hooks/useAuth'
 import type { AppConfig, ColumnLayout, DeliveryInstructionOption, LocationSource } from '@/types/entities'
 
@@ -20,6 +21,7 @@ interface AppConfigContextValue {
   config: AppConfig | null
   /** Falls back to the build-time env var until the fetch resolves, or if the admin hasn't set one. */
   googleMapsApiKey: string
+  hasGoogleMapsApiKey: boolean
   /** Empty array (not yet loaded / admin hasn't restricted anything) means "don't filter — show every payment method". */
   enabledPaymentMethods: string[]
   /** True before the very first fetch resolves — every flag below already carries a safe default, so this is only useful to suppress a layout flash, never required for correctness. */
@@ -49,7 +51,10 @@ interface AppConfigContextValue {
   hasFirebaseConfig: boolean
 }
 
-const DEFAULTS: Omit<AppConfigContextValue, 'config' | 'googleMapsApiKey' | 'enabledPaymentMethods' | 'isLoaded' | 'razorpayKeyId' | 'firebaseConfig' | 'hasFirebaseConfig'> = {
+const DEFAULTS: Omit<
+  AppConfigContextValue,
+  'config' | 'googleMapsApiKey' | 'hasGoogleMapsApiKey' | 'enabledPaymentMethods' | 'isLoaded' | 'razorpayKeyId' | 'firebaseConfig' | 'hasFirebaseConfig'
+> = {
   audioSearchEnabled: false,
   promoSliderEnabled: true,
   topPicksEnabled: true,
@@ -77,6 +82,7 @@ const ENV_FIREBASE_CONFIG: FirebaseWebConfig = { ...FIREBASE_CONFIG, vapidKey: F
 const AppConfigContext = createContext<AppConfigContextValue>({
   config: null,
   googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+  hasGoogleMapsApiKey: !!GOOGLE_MAPS_API_KEY,
   enabledPaymentMethods: [],
   isLoaded: false,
   razorpayKeyId: null,
@@ -105,6 +111,14 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     appConfigService.fetch().then(setConfig).catch(() => undefined)
   }, [])
+
+  const googleMapsApiKey = config?.googleMapsApiKey || GOOGLE_MAPS_API_KEY
+  const hasGoogleMapsApiKey = !!googleMapsApiKey
+  // null (rather than googleMapsApiKey, which already has an env-var fallback) until config has
+  // actually resolved — see GoogleMapsLoaderGate for why that matters: it only mounts the actual
+  // Google Maps script loader once this stops being null, so that loader is never called with a
+  // key that's about to change on the next render.
+  const resolvedGoogleMapsApiKey = config ? googleMapsApiKey : null
 
   async function handleSoftRefresh() {
     setRefreshing(true)
@@ -136,7 +150,8 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
     firebaseConfig,
     hasFirebaseConfig: !!(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId && firebaseConfig.vapidKey),
     config,
-    googleMapsApiKey: config?.googleMapsApiKey || GOOGLE_MAPS_API_KEY,
+    googleMapsApiKey,
+    hasGoogleMapsApiKey,
     enabledPaymentMethods: config?.enabledPaymentMethods ?? [],
     isLoaded: config !== null,
     audioSearchEnabled: config?.audioSearchEnabled ?? DEFAULTS.audioSearchEnabled,
@@ -162,7 +177,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppConfigContext.Provider value={value}>
-      {children}
+      <GoogleMapsLoaderGate googleMapsApiKey={resolvedGoogleMapsApiKey}>{children}</GoogleMapsLoaderGate>
 
       {config?.severity === 'SOFT' && !dismissedSoft && (
         <div className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-slate-800 px-4 py-3 text-white shadow-lg animate-fade-in md:bottom-6 md:right-6 md:left-auto md:mx-0 dark:bg-slate-700">

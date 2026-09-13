@@ -1,14 +1,14 @@
 import { useActiveLocation } from '@/hooks/useLocation'
 import { useAuth } from '@/hooks/useAuth'
 import { useAppConfig } from '@/context/AppConfigContext'
-import { resolveActiveLocationLabel } from '@/lib/locationResolution'
+import { resolveActiveLocationLines } from '@/lib/locationResolution'
 
-/** What HomePage and TopNavBar both show in the "active address" pill — resolved centrally so the priority between a saved address, GPS, and IP location (backend-configurable via AppConfig.locationResolution*, see src/config/locationResolution.ts for the client-side fallback) is defined once instead of duplicated per component. */
-export function useActiveLocationLabel(): string {
+/** Same source-priority resolution as useActiveLocationLabel, but split across a short primary line and a fuller secondary line — for UI (HomePage's location pill) that shows the active location across two lines instead of one truncated string. */
+export function useActiveLocationLines(): { primary: string; secondary: string | null } {
   const { activeAddress, detectedLocations, pickedLocation } = useActiveLocation()
   const { isAuthenticated } = useAuth()
   const appConfig = useAppConfig()
   const sourcePriority = isAuthenticated ? appConfig.locationResolutionAuthenticatedPriority : appConfig.locationResolutionGuestPriority
   const fallbackLabel = isAuthenticated ? appConfig.locationResolutionAuthenticatedFallbackLabel : appConfig.locationResolutionGuestFallbackLabel
-  return resolveActiveLocationLabel({ activeAddress, detectedLocations, pickedLocation, sourcePriority, fallbackLabel })
+  return resolveActiveLocationLines({ activeAddress, detectedLocations, pickedLocation, sourcePriority, fallbackLabel })
 }
