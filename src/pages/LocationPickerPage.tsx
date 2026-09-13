@@ -11,7 +11,8 @@ import { addressService } from '@/services/addressService'
 import { geoService } from '@/services/geoService'
 import { getCurrentPosition } from '@/lib/geolocation'
 import { getRecentLocations, addRecentLocation, type RecentLocation } from '@/lib/recentLocations'
-import { extractPrimaryLocality } from '@/lib/locationResolution'
+import { extractPrimaryLocality, resolveActiveLocation } from '@/lib/locationResolution'
+import { useAppConfig } from '@/context/AppConfigContext'
 import { DEFAULT_MAP_CENTER } from '@/lib/googleMaps'
 import type { Address } from '@/types/entities'
 
@@ -41,22 +42,17 @@ export default function LocationPickerPage() {
   const navigate = useNavigate()
   const { user, isAuthenticated } = useAuth()
   const { activeAddress, detectedLocations, pickedLocation, setActiveAddress, setPickedLocation } = useActiveLocation()
+  const appConfig = useAppConfig()
 
   // Opens already centered on wherever the app currently considers "here", instead of a hardcoded
-  // default — same priority resolveActiveLocationLines uses (an explicit pick first, then saved
-  // address, then GPS, then IP), computed once from whatever's already in context at mount time.
+  // default — same AppConfig-driven priority resolveActiveLocationLines uses for the home-page
+  // pill (see src/config/locationResolution.ts), computed once from whatever's already in context
+  // at mount time so the map doesn't jump mid-visit as a background GPS fix resolves.
   const initialPoint = useMemo<PendingPoint | null>(() => {
-    if (pickedLocation) return { latitude: pickedLocation.latitude, longitude: pickedLocation.longitude, label: pickedLocation.label, title: pickedLocation.title }
-    if (activeAddress) {
-      return {
-        latitude: activeAddress.latitude,
-        longitude: activeAddress.longitude,
-        label: [activeAddress.house, activeAddress.address].filter(Boolean).join(', ') || activeAddress.tag || 'Selected location',
-      }
-    }
-    const detected = detectedLocations.gps ?? detectedLocations.ip
-    if (detected) return { latitude: detected.latitude, longitude: detected.longitude, label: detected.label }
-    return null
+    const sourcePriority = isAuthenticated ? appConfig.locationResolutionAuthenticatedPriority : appConfig.locationResolutionGuestPriority
+    const resolved = resolveActiveLocation({ activeAddress, detectedLocations, pickedLocation, sourcePriority })
+    if (!resolved) return null
+    return { latitude: resolved.latitude, longitude: resolved.longitude, label: resolved.secondary ?? resolved.primary, title: resolved.source === 'picked' ? pickedLocation?.title : undefined }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

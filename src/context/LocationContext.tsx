@@ -28,8 +28,10 @@ interface LocationContextValue {
    * search) — distinct from detectedLocations' 'gps'/'ip' slots, which useLocationAutoDetect
    * silently overwrites with a fresh device fix on every page load. Without this separate, its-own-
    * persisted slot, a customer's manual pick would get clobbered by the next automatic GPS/IP
-   * resolution the moment they refreshed. Outranks both activeAddress and detectedLocations in
-   * resolveActiveLocationLines - see LocationPickerPage, the only place that sets it. */
+   * resolution the moment they refreshed. Ranked against activeAddress/detectedLocations via
+   * AppConfig's locationResolution*Priority list (see src/config/locationResolution.ts) as the
+   * 'picked' source — not automatically first, so an admin can choose whether a live GPS fix
+   * should override it. Set only from LocationPickerPage. */
   pickedLocation: DetectedLocation | null
   setPickedLocation: (location: DetectedLocation | null) => void
 }

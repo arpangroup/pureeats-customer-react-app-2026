@@ -4,55 +4,61 @@ How PureEats decides what to show as the customer's "active address" / delivery 
 
 ## The short version
 
-Four sources can produce an "active address" label, tried in a **backend-configurable priority order**, separately for logged-in customers and guests:
+Five sources can produce an "active address" label, tried in a **backend-configurable priority order**, separately for logged-in customers and guests:
 
 | Source | What it is | Needs |
 |---|---|---|
 | `saved` | The customer's saved default delivery address | Logged in (`GET /users/me/addresses`, auto-selected by `LocationBootstrap`) |
 | `gps` | Real device GPS, reverse-geocoded to a street address | Browser permission granted |
 | `ip` | Coarse, city-level guess from the caller's IP | Nothing — works for guests |
+| `picked` | A location explicitly confirmed on the location picker (map pin, search result, or recent search) | Nothing — client-side only, `LocationContext.pickedLocation`, persisted to localStorage so it survives a refresh |
 | *(fallback text)* | A static label when nothing above resolved | — |
 
 The first source in the configured priority list that has a value wins the display. Nothing else about the app depends on the order — restaurants, cart, checkout all still work regardless of which source (or none) resolved.
 
+**This priority order is the one place to answer "should the customer's live location always win, or should whatever they last picked/saved stick?"** — no code change either way, just reorder the array (see "Where the config lives" below). The shipped default is GPS-first (`["gps", "ip", "saved", "picked"]` / `["gps", "ip", "picked"]`): a live GPS fix always overrides a stale saved/picked address whenever the browser can actually resolve one. Put `"saved"`/`"picked"` ahead of `"gps"`/`"ip"` instead to make an explicit choice sticky across visits — that was the previous default, and is still a one-line config change away, not a redeploy.
+
 ## Where the config lives
 
-Same pattern as every other feature flag in this app (`audioSearchEnabled`, `mapProvider`, ...): one JSON blob in the backend's generic `settings` table (key `app_config`), served by `GET /api/v1/app-config` and editable by an admin via `PUT /api/v1/admin/app-config`. Four new fields:
+Same pattern as every other feature flag in this app (`audioSearchEnabled`, `mapProvider`, ...): one JSON blob in the backend's generic `settings` table (key `app_config`), served by `GET /api/v1/app-config` and editable by an admin via `PUT /api/v1/admin/app-config`. Four fields:
 
 ```jsonc
 {
-  "locationResolutionAuthenticatedPriority": ["saved", "gps", "ip"],
-  "locationResolutionGuestPriority": ["gps", "ip"],
+  "locationResolutionAuthenticatedPriority": ["gps", "ip", "saved", "picked"],
+  "locationResolutionGuestPriority": ["gps", "ip", "picked"],
   "locationResolutionAuthenticatedFallbackLabel": "Set your location",
   "locationResolutionGuestFallbackLabel": "Other"
 }
 ```
 
-- Reorder either priority array to change precedence (e.g. put `"ip"` before `"gps"` to prefer the instant-but-coarse guess).
+- Reorder either priority array to change precedence — e.g. move `"saved"`/`"picked"` ahead of `"gps"`/`"ip"` to make an explicit choice stick across visits instead of always deferring to the live location; put `"ip"` before `"gps"` to prefer the instant-but-coarse guess.
 - Drop `"gps"` from an array to stop that flow from ever asking for browser permission (the dialog disappears too — nothing left to ask permission *for*).
 - Drop `"ip"` to stop calling the IP-geolocation fallback.
+- Drop `"picked"` to make the location picker page a one-shot "browse from here" action that never outlives the session it was picked in.
 - `"saved"` in `locationResolutionGuestPriority` is harmless but pointless — a guest has nothing saved, so it never resolves.
+- No backend validation restricts which strings are accepted — `List<String>`, passed through unchanged (`AppConfigService`) — so this file is the source of truth for which values the frontend actually understands (`saved` | `gps` | `ip` | `picked`, see `LocationSource` in `src/types/entities.ts`). A typo or unrecognized value is silently skipped by `resolveActiveLocation`'s walk, same as an unconfigured source.
 
 **Frontend fallback**: until `/app-config` resolves (or against an older backend that doesn't have these fields yet), the customer app uses `src/config/locationResolution.ts`'s `defaultLocationResolutionConfig` — the exact same shape, mirrored by hand. `AppConfigContext` merges `config?.field ?? DEFAULTS.field` per field, so a backend that's missing just one of the four (not yet redeployed, say) still gets safe values for that one field without discarding the rest.
 
 ## Resolution algorithm
 
-`src/lib/locationResolution.ts` → `resolveActiveLocationLabel()` — a pure function, no side effects:
+`src/lib/locationResolution.ts` → `resolveActiveLocation()` (coordinates + label) and the thin `resolveActiveLocationLabel()`/`resolveActiveLocationLines()` wrappers around it — pure functions, no side effects:
 
 ```ts
 for (const source of sourcePriority) {
-  if (source === 'saved' && activeAddress) return activeAddress.tag ?? 'Delivering to'
+  if (source === 'saved' && activeAddress) return { ...from activeAddress... }
+  if (source === 'picked' && pickedLocation) return { ...from pickedLocation... }
   if (source === 'gps' || source === 'ip') {
     const detected = detectedLocations[source]
-    if (detected) return detected.label
+    if (detected) return { ...from detected... }
   }
 }
-return fallbackLabel
+return null // caller shows fallbackLabel
 ```
 
-`sourcePriority` and `fallbackLabel` are picked by auth state (`useActiveLocationLabel()`), so the same function serves both `HomePage`'s mobile header and `TopNavBar`'s desktop one — no duplicated priority logic.
+`sourcePriority` and `fallbackLabel` are picked by auth state (`useActiveLocationLabel()`), so the same function serves both `HomePage`'s mobile header and `TopNavBar`'s desktop one — no duplicated priority logic. `resolveActiveLocation()` (the coordinates-included version) also backs `LocationPickerPage`'s "open already centered on wherever the app currently considers 'here'" behavior, so the picker's map and the home-page pill can never disagree about what "here" means.
 
-`gps` and `ip` results are stored **separately** in `LocationContext` (`detectedLocations: { gps?, ip? }`), not merged into one "last resolved" slot — otherwise whichever finished last would always win, which breaks a priority order that puts `ip` ahead of `gps`.
+`gps` and `ip` results are stored **separately** in `LocationContext` (`detectedLocations: { gps?, ip? }`), not merged into one "last resolved" slot — otherwise whichever finished last would always win, which breaks a priority order that puts `ip` ahead of `gps`. `picked` is separate again (`LocationContext.pickedLocation`) from both of those, specifically so `useLocationAutoDetect`'s background GPS/IP refresh — which reruns on every fresh page load — can never silently clobber a location the customer explicitly chose on the picker page. It's `resolveActiveLocation`'s priority walk that decides whether that pick or a fresh GPS fix wins, not which one happened to resolve last.
 
 ## Detection flow (when do we actually try GPS/IP?)
 
@@ -102,14 +108,18 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["resolveActiveLocationLabel()"] --> B{"'saved' next in\npriority list AND\nactiveAddress set?"}
-    B -->|"yes"| C["Show saved address's tag\n(e.g. 'Home')"]
-    B -->|"no"| D{"'gps' next AND\ndetectedLocations.gps set?"}
-    D -->|"yes"| E["Show GPS-resolved address"]
-    D -->|"no"| F{"'ip' next AND\ndetectedLocations.ip set?"}
-    F -->|"yes"| G["Show 'Near &lt;city&gt;'\nor IP-resolved address"]
-    F -->|"no, list exhausted"| H["Show fallbackLabel\n('Other' / 'Set your location')"]
+    A["resolveActiveLocation()"] --> B{"'gps' next in\npriority list AND\ndetectedLocations.gps set?"}
+    B -->|"yes"| C["Show GPS-resolved address"]
+    B -->|"no"| D{"'ip' next AND\ndetectedLocations.ip set?"}
+    D -->|"yes"| E["Show 'Near &lt;city&gt;'\nor IP-resolved address"]
+    D -->|"no"| F{"'saved' next AND\nactiveAddress set?"}
+    F -->|"yes"| G["Show saved address's tag\n(e.g. 'Home')"]
+    F -->|"no"| I{"'picked' next AND\npickedLocation set?"}
+    I -->|"yes"| J["Show the explicitly\npicked location"]
+    I -->|"no, list exhausted"| H["Show fallbackLabel\n('Other' / 'Set your location')"]
 ```
+
+(Shown in the shipped default order — `gps, ip, saved, picked` — but each `{...}` branch only runs when that source is actually next in the *configured* priority list, so reordering `locationResolution*Priority` changes which branch is checked first, not the code.)
 
 ## API reference
 
@@ -155,6 +165,6 @@ Trade-off accepted: the permission dialog can now appear on *any* first-landed p
 
 ## Out of scope / explicit non-goals here
 
-- Admin-panel UI to edit the four new `locationResolution*` fields (`pureeats-react-ui`) — the backend accepts them via the existing generic `PUT /api/v1/admin/app-config`, but no form field was added for them; today an admin would edit the JSON directly or a form field needs adding.
+- Admin-panel UI to edit the four `locationResolution*` fields (`pureeats-admin-react-app-2026`) — the backend accepts them via the existing generic `PUT /api/v1/admin/app-config`, but no form field was added for them; today an admin edits the JSON directly (or a form field needs adding).
 - Wiring resolved GPS/IP coordinates into actual restaurant-distance sorting (see the recommendation above) — coordinates are captured and available in `LocationContext.detectedLocations`, but nothing currently consumes them for that purpose.
 - Routing the address-form map picker's reverse-geocoding through the backend too (see "Reverse geocoding" above).
