@@ -1,6 +1,23 @@
 import type { DetectedLocation, DetectedLocationSource } from '@/context/LocationContext'
 import type { Address, LocationSource } from '@/types/entities'
 
+/** Google's plus-code format for a precise point with no street address nearby — e.g. "GC2G+W46"
+ * or "XHCW+72P" — meaningless as a headline, so extractPrimaryLocality skips over one if it leads
+ * the address. */
+const PLUS_CODE_PATTERN = /^[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,4}$/i
+
+/** The first meaningful comma-separated segment of a geocoded display name (Nominatim/Google both
+ * format this "most specific place, then broader areas") — e.g. "Anjaiah Nagar" out of "GC2G+W46,
+ * Maisamma Nagar, Anjaiah Nagar, Kukatpally, Hyderabad, Telangana, India" (skipping the leading
+ * plus-code, which isn't a place name). Used as the short headline for a full address, the same
+ * way Swiggy/Zomato-style apps show a locality name rather than a generic "Current location"
+ * placeholder. */
+export function extractPrimaryLocality(fullAddress: string): string | null {
+  const segments = fullAddress.split(',').map((s) => s.trim()).filter(Boolean)
+  const first = segments.find((s) => !PLUS_CODE_PATTERN.test(s))
+  return first ?? segments[0] ?? null
+}
+
 interface ResolveActiveLocationLabelArgs {
   activeAddress: Address | null
   detectedLocations: Partial<Record<DetectedLocationSource, DetectedLocation>>
@@ -25,7 +42,10 @@ export function resolveActiveLocationLines({ activeAddress, detectedLocations, s
     }
     if (source === 'gps' || source === 'ip') {
       const detected = detectedLocations[source]
-      if (detected) return { primary: source === 'gps' ? 'Current location' : 'Near you', secondary: detected.label }
+      if (detected) {
+        const primary = extractPrimaryLocality(detected.label) ?? (source === 'gps' ? 'Current location' : 'Near you')
+        return { primary, secondary: detected.label }
+      }
     }
   }
   return { primary: fallbackLabel, secondary: null }

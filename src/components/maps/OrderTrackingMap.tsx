@@ -1,5 +1,4 @@
 import { GoogleMap, Marker, Polyline } from '@react-google-maps/api'
-import { useAppConfig } from '@/context/AppConfigContext'
 import { useGoogleMaps } from '@/lib/googleMaps'
 import { OsmOrderTrackingMap } from './OsmOrderTrackingMap'
 import { lerp, useRiderProgress, type LatLng } from '@/lib/orderTrackingProgress'
@@ -7,14 +6,12 @@ import type { OrderStatus } from '@/types/entities'
 
 /** Restaurant + delivery-address markers, plus a simulated rider marker that eases along the route once a rider is assigned — purely cosmetic (no real GPS feed) but gives the tracking page a live feel. Full-bleed/taller (`tall`) for the order-tracking page's redesigned top-of-page layout. */
 export function OrderTrackingMap({ restaurant, destination, status, tall }: { restaurant: LatLng; destination: LatLng; status: OrderStatus; tall?: boolean }) {
-  const { mapProvider } = useAppConfig()
-  const { isLoaded, loadError, hasApiKey } = useGoogleMaps()
+  const { isLoaded, wantsGoogle } = useGoogleMaps()
   const progress = useRiderProgress(status)
   const mapContainerStyle = { width: '100%', height: tall ? '340px' : '200px', borderRadius: tall ? '0' : '12px' }
 
-  // Same provider-selection rule as AddressMapPicker: OSM by default, Google only when the backend
-  // opts in AND a key is actually configured, falling back to OSM on any load failure either way.
-  const wantsGoogle = mapProvider === 'GOOGLE' && hasApiKey && !loadError
+  // Same provider-selection rule as AddressMapPicker (see useGoogleMaps): Google whenever a key is
+  // configured and loads successfully, OSM otherwise.
   if (!wantsGoogle) return <OsmOrderTrackingMap restaurant={restaurant} destination={destination} status={status} tall={tall} />
   if (!isLoaded) return <div className="flex h-[200px] items-center justify-center text-xs text-slate-400">Loading map…</div>
 

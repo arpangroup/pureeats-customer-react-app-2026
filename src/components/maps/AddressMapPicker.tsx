@@ -2,7 +2,6 @@ import { useCallback, useRef, useState, type ReactNode } from 'react'
 import { Autocomplete, GoogleMap, Marker } from '@react-google-maps/api'
 import { Search } from 'lucide-react'
 import { useGoogleMaps } from '@/lib/googleMaps'
-import { useAppConfig } from '@/context/AppConfigContext'
 import { OsmMapPicker } from './OsmMapPicker'
 
 interface AddressMapPickerProps {
@@ -19,14 +18,12 @@ interface AddressMapPickerProps {
  * A draggable-pin map with a place search box — used by the address form. Dragging the pin (or
  * picking a search result) reverse-geocodes to a formatted address via the callback.
  *
- * Which provider renders is `config.mapProvider` (defaults to OSM — the free option that needs no
- * API key) — Google is only attempted when the backend explicitly opts in AND a key is actually
- * configured; any failure to load it (missing key, script error) falls back to OSM either way, so
- * the form never renders without a working map.
+ * Which provider renders is decided by useGoogleMaps: Google whenever a key is configured and
+ * loads successfully, OSM (the free option that needs no key) otherwise — so the form never
+ * renders without a working map.
  */
 export function AddressMapPicker({ latitude, longitude, onChange, overlay, tall }: AddressMapPickerProps) {
-  const { mapProvider } = useAppConfig()
-  const { isLoaded, loadError, hasApiKey } = useGoogleMaps()
+  const { isLoaded, wantsGoogle } = useGoogleMaps()
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null)
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
   const mapContainerStyle = { width: '100%', height: tall ? '380px' : '220px', borderRadius: tall ? '0' : '12px' }
@@ -56,10 +53,8 @@ export function AddressMapPicker({ latitude, longitude, onChange, overlay, tall 
     onChange({ latitude: lat, longitude: lng }, place?.formatted_address)
   }
 
-  // Google is only attempted when the backend explicitly configured it AND a key is actually
-  // present — OSM is the default and the fallback for a missing key, a failed script load, or the
-  // backend simply not opting in.
-  const wantsGoogle = mapProvider === 'GOOGLE' && hasApiKey && !loadError
+  // Google renders whenever a key is actually configured and loads successfully - OSM is the
+  // fallback for a missing or invalid key (see useGoogleMaps).
   if (!wantsGoogle) return <OsmMapPicker latitude={latitude} longitude={longitude} onChange={onChange} overlay={overlay} tall={tall} />
   if (!isLoaded) return <div className="flex h-[220px] items-center justify-center text-xs text-slate-400">Loading map…</div>
 
