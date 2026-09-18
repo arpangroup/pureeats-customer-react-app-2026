@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/apiClient'
 import { mockDelay, nextMockId } from '@/lib/mockUtils'
 import { IS_MOCK } from '@/config/env'
 import { users } from '@/mocks/fixtures/users'
+import { markUserDeleted } from '@/services/authService'
 import type { Gender, User } from '@/types/entities'
 import type { LoginChallengeResponse } from '@/types/auth'
 
@@ -121,5 +122,18 @@ export const userService = {
     }
     const { data } = await apiClient.post<{ data: User }>('/users/me/email/verify', { challengeId, otp })
     return data.data
+  },
+
+  /** Soft delete, not a real removal - see the backend's UserService#deleteOwnAccount. The caller
+   * (SettingsPage) is responsible for clearing the local session right after this resolves; this
+   * call only tells the backend (or, in mock mode, the in-memory auth simulation) the account can
+   * never log in again. */
+  async deleteAccount(userId: number): Promise<void> {
+    if (IS_MOCK) {
+      await mockDelay()
+      markUserDeleted(userId)
+      return
+    }
+    await apiClient.delete('/users/me')
   },
 }

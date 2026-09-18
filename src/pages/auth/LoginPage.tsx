@@ -9,6 +9,7 @@ import { DEMO_ACCOUNTS } from '@/services/authService'
 interface LoginNavState {
   from?: string
   method?: 'EMAIL' | 'PHONE'
+  accountDeleted?: boolean
 }
 
 export default function LoginPage() {
@@ -44,6 +45,12 @@ export default function LoginPage() {
     <div className="card p-6">
       <h2 className="mb-1 text-lg font-semibold text-slate-800 dark:text-slate-100">Sign in</h2>
       <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">We'll send you a one-time code to verify it's you.</p>
+
+      {navState.accountDeleted && (
+        <p className="mb-4 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          Your account has been deleted. Sign up with a different email or phone number to create a new one.
+        </p>
+      )}
 
       <div className="mb-4 flex gap-1 rounded-xl bg-slate-100 p-1 text-sm dark:bg-slate-800">
         <button

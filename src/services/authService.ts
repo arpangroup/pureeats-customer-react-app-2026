@@ -37,6 +37,15 @@ interface MockChallenge {
 const mockChallenges = new Map<string, MockChallenge>()
 const MOCK_OTP = '123456'
 
+/** Mirrors the real backend's accountStatus=DELETED check (AuthenticationService#assertAccountUsable) —
+ * mock mode has no persistent DB row to flip a status on, so a deleted user id just lives in this
+ * in-memory set for the rest of the session. userService.deleteAccount() adds to it. */
+const deletedUserIds = new Set<number>()
+
+export function markUserDeleted(userId: number): void {
+  deletedUserIds.add(userId)
+}
+
 function maskDestination(value: string): string {
   if (value.includes('@')) {
     const [local, domain] = value.split('@')
@@ -75,6 +84,9 @@ export const authService = {
       const existing = users.find((u) =>
         payload.method === 'EMAIL' ? u.email.toLowerCase() === payload.email.toLowerCase() : u.phone === payload.phone,
       )
+      if (existing && deletedUserIds.has(existing.id)) {
+        throw { message: 'This account has been deleted. Create a new account to continue.' }
+      }
       const challengeId = `mock-challenge-${nextMockId()}`
       mockChallenges.set(
         challengeId,
@@ -111,6 +123,9 @@ export const authService = {
       const challenge = mockChallenges.get(payload.challengeId)
       if (!challenge) throw { message: 'Challenge not found or expired.' }
       if (payload.otp !== MOCK_OTP) throw { message: `Invalid OTP. Use ${MOCK_OTP} in mock mode.` }
+      if (deletedUserIds.has(challenge.userId)) {
+        throw { message: 'This account has been deleted. Create a new account to continue.' }
+      }
       mockChallenges.delete(payload.challengeId)
       const claims = {
         sub: String(challenge.userId),
