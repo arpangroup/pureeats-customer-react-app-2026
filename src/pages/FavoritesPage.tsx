@@ -5,10 +5,12 @@ import { RestaurantCard } from '@/components/restaurants/RestaurantCard'
 import { useAsync } from '@/hooks/useAsync'
 import { useFavorites } from '@/hooks/useFavorites'
 import { restaurantService } from '@/services/restaurantService'
+import { useActiveLocationCoords } from '@/hooks/useActiveLocationCoords'
 
 export default function FavoritesPage() {
   const { favoriteIds } = useFavorites()
-  const { data: restaurants, isLoading } = useAsync(() => restaurantService.list(), [])
+  const coords = useActiveLocationCoords()
+  const { data: restaurants, isLoading } = useAsync(() => restaurantService.list(coords ?? undefined), [coords])
   const favorites = (restaurants ?? []).filter((r) => favoriteIds.includes(r.id))
 
   return (

@@ -36,6 +36,12 @@ function PlaceSearchBox({ onPlaceSelected, tall }: { onPlaceSelected: (place: go
     if (!container) return
     const element = new google.maps.places.PlaceAutocompleteElement({})
     element.style.width = '100%'
+    element.style.borderRadius = '12px'
+    // Not in PlaceAutocompleteElementOptions or the element's typed properties (there's no
+    // supported placeholder API for it), but the shadow DOM's internal input still honors a plain
+    // `placeholder` attribute set on the host - verified live, so setting it directly works despite
+    // TypeScript having nothing to say about it.
+    element.setAttribute('placeholder', 'Search a place to center the map')
     container.appendChild(element)
     elementRef.current = element
 
@@ -63,7 +69,9 @@ function PlaceSearchBox({ onPlaceSelected, tall }: { onPlaceSelected: (place: go
   // CSS `color-scheme` property, which the widget's internal styling evidently keys off instead of
   // the media query directly. Pinning it to this app's active theme keeps the two in sync.
   useEffect(() => {
-    if (elementRef.current) elementRef.current.style.colorScheme = theme
+    if (!elementRef.current) return
+    elementRef.current.style.colorScheme = theme
+    elementRef.current.style.border = `1px solid ${theme === 'dark' ? '#334155' : '#e2e8f0'}`
   }, [theme])
 
   return <div ref={containerRef} className={tall ? 'w-full rounded-xl bg-white shadow-md dark:bg-slate-900' : 'w-full'} />
