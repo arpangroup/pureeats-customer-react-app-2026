@@ -6,7 +6,7 @@ import { estimateOrderPricing } from '@/lib/pricing'
 import { IS_MOCK } from '@/config/env'
 import { ordersByUser } from '@/mocks/fixtures/orders'
 import { restaurants } from '@/mocks/fixtures/restaurants'
-import type { Order, OrderDeliveryPartner, OrderItem, OrderItemAddon, OrderStatus, OrderSummary, OrderTimeline, OrderTracking, PaymentMode, OrderDeliveryType, TrackingPoint } from '@/types/entities'
+import type { DeliveryPartnerProfile, Order, OrderDeliveryPartner, OrderItem, OrderItemAddon, OrderStatus, OrderSummary, OrderTimeline, OrderTracking, PaymentMode, OrderDeliveryType, TrackingPoint } from '@/types/entities'
 
 export interface PlaceOrderInput {
   restaurantId: number
@@ -297,6 +297,57 @@ export const orderService = {
       destination: point(d.destination),
       rider: rider && d.rider ? { ...rider, updatedAt: d.rider.updatedAt, stale: d.rider.stale } : null,
       path: (d.path ?? []).map(point).filter((p): p is TrackingPoint => p !== null),
+    }
+  },
+
+  /** The delivery partner on one of the caller's orders - photo, rating, trips, compliments, reviews. */
+  async deliveryPartner(userId: number, id: number): Promise<DeliveryPartnerProfile> {
+    if (IS_MOCK) {
+      await mockDelay(300)
+      const order = (ordersByUser[userId] ?? []).find((o) => o.id === id)
+      const partner = order?.deliveryPartner
+      if (!partner) throw { message: 'No delivery partner has been assigned to this order yet.' }
+      return {
+        id: partner.id,
+        name: partner.name,
+        photo: partner.photo,
+        vehicleNumber: partner.vehicleNumber,
+        phone: partner.phone,
+        verified: true,
+        rating: 4.8,
+        ratingCount: 312,
+        ratingBreakdown: [
+          { stars: 5, count: 262 },
+          { stars: 4, count: 36 },
+          { stars: 3, count: 9 },
+          { stars: 2, count: 3 },
+          { stars: 1, count: 2 },
+        ],
+        completedTrips: 1486,
+        deliveriesForYou: 3,
+        totalDistanceKm: 5210.4,
+        memberSince: '2024-11-02T10:00:00',
+        topCompliments: [
+          { label: 'On time', count: 188 },
+          { label: 'Polite', count: 141 },
+          { label: 'Careful with food', count: 97 },
+          { label: 'Followed instructions', count: 64 },
+        ],
+        recentReviews: [
+          { rating: 5, comment: 'Arrived early and the food was still hot. Very polite!', reviewerName: 'Asha M.', createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString() },
+          { rating: 5, comment: 'Called before reaching and found the gate easily.', reviewerName: 'Rahul', createdAt: new Date(Date.now() - 5 * 86_400_000).toISOString() },
+        ],
+      }
+    }
+    const { data } = await apiClient.get<{ data: DeliveryPartnerProfile }>(`/orders/${id}/delivery-partner`)
+    const d = data.data
+    return {
+      ...d,
+      rating: d.rating == null ? null : toNumber(d.rating),
+      totalDistanceKm: toNumber(d.totalDistanceKm),
+      ratingBreakdown: d.ratingBreakdown ?? [],
+      topCompliments: d.topCompliments ?? [],
+      recentReviews: d.recentReviews ?? [],
     }
   },
 

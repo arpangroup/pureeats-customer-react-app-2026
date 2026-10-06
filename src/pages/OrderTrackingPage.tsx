@@ -5,6 +5,7 @@ import { LoadingBlock, EmptyState } from '@/components/ui/Feedback'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { OrderStatusTimeline } from '@/components/orders/OrderStatusTimeline'
 import { OrderTrackingMap } from '@/components/maps/OrderTrackingMap'
+import { DeliveryPartnerSheet } from '@/components/orders/DeliveryPartnerSheet'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { useAsync } from '@/hooks/useAsync'
 import { useOrderStatusUpdates } from '@/hooks/useOrderStatusUpdates'
@@ -45,6 +46,7 @@ export default function OrderTrackingPage() {
   const cart = useCart()
   const [cancelling, setCancelling] = useState(false)
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
+  const [partnerSheetOpen, setPartnerSheetOpen] = useState(false)
   const [confirmReorderOpen, setConfirmReorderOpen] = useState(false)
   const [downloadingInvoice, setDownloadingInvoice] = useState(false)
   const [invoiceError, setInvoiceError] = useState<string | null>(null)
@@ -201,19 +203,28 @@ export default function OrderTrackingPage() {
 
         {order.deliveryPartner && (
           <div className="card mt-4 flex items-center gap-3 p-4">
-            {order.deliveryPartner.photo ? (
-              <img src={order.deliveryPartner.photo} alt={order.deliveryPartner.name} className="h-10 w-10 shrink-0 rounded-full object-cover" />
-            ) : (
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-500/15">
-                <Bike size={18} />
+            {/* Photo + name open the partner's profile sheet; the call button stays a direct action. */}
+            <button
+              type="button"
+              onClick={() => setPartnerSheetOpen(true)}
+              className="flex min-w-0 flex-1 items-center gap-3 text-left"
+              aria-label={`View ${order.deliveryPartner.name}'s profile`}
+            >
+              {order.deliveryPartner.photo ? (
+                <img src={order.deliveryPartner.photo} alt={order.deliveryPartner.name} className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-brand-100 dark:ring-brand-500/30" />
+              ) : (
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600 dark:bg-brand-500/15">
+                  <Bike size={20} />
+                </span>
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-slate-700 dark:text-slate-200">{order.deliveryPartner.name}</span>
+                <span className="block text-xs text-slate-400">
+                  Your delivery partner{order.deliveryPartner.vehicleNumber ? ` · ${order.deliveryPartner.vehicleNumber}` : ''}
+                </span>
+                <span className="mt-0.5 block text-[11px] font-semibold text-brand-600 dark:text-brand-400">View profile ›</span>
               </span>
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{order.deliveryPartner.name}</p>
-              <p className="text-xs text-slate-400">
-                Your delivery partner{order.deliveryPartner.vehicleNumber ? ` · ${order.deliveryPartner.vehicleNumber}` : ''}
-              </p>
-            </div>
+            </button>
             {order.deliveryPartner.phone && (
               <a href={`tel:${order.deliveryPartner.phone}`} className="rounded-full bg-slate-100 p-2 text-slate-600 dark:bg-slate-800 dark:text-slate-300" aria-label="Call rider">
                 <Phone size={16} />
@@ -309,6 +320,15 @@ export default function OrderTrackingPage() {
         <div className="h-24 md:hidden" aria-hidden="true" />
       </div>
 
+      {order.deliveryPartner && user && (
+        <DeliveryPartnerSheet
+          open={partnerSheetOpen}
+          onClose={() => setPartnerSheetOpen(false)}
+          userId={user.id}
+          orderId={order.id}
+          partner={order.deliveryPartner}
+        />
+      )}
       <ConfirmDialog
         open={confirmCancelOpen}
         title="Cancel this order?"
