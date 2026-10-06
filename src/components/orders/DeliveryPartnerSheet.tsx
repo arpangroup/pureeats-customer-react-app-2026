@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { BadgeCheck, Bike, Phone, Star, X } from 'lucide-react'
+import { BadgeCheck, Bike, Star, X } from 'lucide-react'
 import { orderService } from '@/services/orderService'
 import { classNames } from '@/lib/format'
 import type { DeliveryPartnerProfile, OrderDeliveryPartner } from '@/types/entities'
@@ -31,10 +31,10 @@ function Avatar({ name, photo, className }: { name: string; photo: string | null
 }
 
 /**
- * Delivery partner sheet, opened by tapping the rider on the tracking page. Deliberately minimal:
- * a large photo, name (+ verified tick), vehicle number, one line of rating and completed trips,
- * and a Call button. Name/photo/vehicle/phone come from the order and render instantly; rating and
- * trips fill in from GET /orders/{id}/delivery-partner.
+ * Delivery partner sheet, opened by tapping the rider on the tracking page. Only the essentials:
+ * photo with the verified badge, name, vehicle number, overall rating and trips completed. Photo,
+ * name and vehicle come from the order and render instantly; rating and trips fill in from
+ * GET /orders/{id}/delivery-partner. (Calling the rider stays on the tracking page's rider card.)
  */
 export function DeliveryPartnerSheet({
   open,
@@ -81,7 +81,6 @@ export function DeliveryPartnerSheet({
   const name = profile?.name ?? partner.name
   const photo = profile?.photo ?? partner.photo
   const vehicle = profile?.vehicleNumber ?? partner.vehicleNumber
-  const phone = profile?.phone ?? partner.phone
   const verified = profile?.verified ?? true
 
   return createPortal(
@@ -98,14 +97,18 @@ export function DeliveryPartnerSheet({
           <X size={18} />
         </button>
 
-        <div className="flex flex-col items-center pb-5 pt-6 text-center">
-          <Avatar name={name} photo={photo} className="h-28 w-28 rounded-full text-3xl shadow-md" />
+        <div className="flex flex-col items-center pb-6 pt-6 text-center">
+          <div className="relative">
+            <Avatar name={name} photo={photo} className="h-28 w-28 rounded-full text-3xl shadow-md" />
+            {verified && (
+              <span className="absolute bottom-0.5 right-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow dark:bg-slate-900" title="Verified">
+                <BadgeCheck size={24} className="fill-sky-500 text-white" aria-label="Verified" />
+              </span>
+            )}
+          </div>
 
-          <h2 className="mt-4 flex items-center gap-1.5 text-lg font-bold text-slate-900 dark:text-white">
-            {name}
-            {verified && <BadgeCheck size={18} className="fill-sky-500 text-white" aria-label="Verified" />}
-          </h2>
-          <p className="text-xs text-slate-400">Your delivery partner</p>
+          <h2 className="mt-4 text-lg font-bold text-slate-900 dark:text-white">{name}</h2>
+          {verified && <p className="text-xs font-medium text-sky-600 dark:text-sky-400">Verified partner</p>}
 
           {vehicle && (
             <span className="mt-3 rounded-md bg-slate-100 px-2.5 py-1 font-mono text-xs font-semibold tracking-wider text-slate-700 dark:bg-slate-800 dark:text-slate-200">
@@ -113,27 +116,20 @@ export function DeliveryPartnerSheet({
             </span>
           )}
 
-          {/* One quiet line; reserved height so it doesn't jump when the profile arrives. */}
-          <p className="mt-3 flex h-5 items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-            {profile && (
-              <>
-                {profile.rating != null && (
-                  <span className="inline-flex items-center gap-1 font-semibold">
-                    <Star size={14} className="fill-amber-400 text-amber-400" /> {profile.rating.toFixed(1)}
-                  </span>
-                )}
-                {profile.rating != null && profile.completedTrips > 0 && <span className="text-slate-300 dark:text-slate-600">·</span>}
-                {profile.completedTrips > 0 && <span>{compact(profile.completedTrips)} deliveries</span>}
-              </>
-            )}
-          </p>
+          <div className="mt-5 grid w-full grid-cols-2 divide-x divide-slate-100 rounded-2xl bg-slate-50 py-3 dark:divide-slate-800 dark:bg-slate-800/50">
+            <div>
+              <p className="flex items-center justify-center gap-1 text-lg font-bold text-slate-900 dark:text-white">
+                <Star size={16} className="fill-amber-400 text-amber-400" />
+                {profile ? (profile.rating != null ? profile.rating.toFixed(1) : 'New') : '—'}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Rating</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-slate-900 dark:text-white">{profile ? compact(profile.completedTrips) : '—'}</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Trips completed</p>
+            </div>
+          </div>
         </div>
-
-        {phone && (
-          <a href={`tel:${phone}`} className="btn-primary mb-4 flex w-full items-center justify-center gap-2">
-            <Phone size={16} /> Call {name.split(' ')[0]}
-          </a>
-        )}
       </div>
     </div>,
     document.body,

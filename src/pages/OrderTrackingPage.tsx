@@ -1,5 +1,5 @@
-import { useNavigate, useParams } from 'react-router-dom'
-import { Bike, Download, KeyRound, LifeBuoy, MapPin, Phone, RotateCcw, Star } from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Bike, ChevronRight, Download, KeyRound, LifeBuoy, MapPin, Phone, RotateCcw, Star } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { LoadingBlock, EmptyState } from '@/components/ui/Feedback'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -178,13 +178,19 @@ export default function OrderTrackingPage() {
 
         <div className="card p-4">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
-              <img src={order.restaurantImage || restaurant?.image} alt={order.restaurantName} className="h-full w-full object-cover" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-slate-800 dark:text-slate-100">{order.restaurantName}</p>
-              <p className="text-xs text-slate-400">{order.items.reduce((n, i) => n + i.quantity, 0)} items · {formatCurrency(order.payable)}</p>
-            </div>
+            {/* Store image + name open the store's page; the call button stays its own action. */}
+            <Link to={`/restaurants/${order.restaurantId}`} className="flex min-w-0 flex-1 items-center gap-3" aria-label={`Open ${order.restaurantName}`}>
+              <span className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+                <img src={order.restaurantImage || restaurant?.image} alt="" className="h-full w-full object-cover" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-0.5 font-semibold text-slate-800 dark:text-slate-100">
+                  <span className="truncate">{order.restaurantName}</span>
+                  <ChevronRight size={16} className="shrink-0 text-slate-400" />
+                </span>
+                <span className="block text-xs text-slate-400">{order.items.reduce((n, i) => n + i.quantity, 0)} items · {formatCurrency(order.payable)}</span>
+              </span>
+            </Link>
             {restaurantAccepted && order.restaurantContactNumber && (
               <a
                 href={`tel:${order.restaurantContactNumber}`}
