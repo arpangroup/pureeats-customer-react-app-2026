@@ -12,7 +12,8 @@ export function LocationBootstrap() {
     if (!isAuthenticated || !user || activeAddress) return
     addressService.list(user.id).then((addresses) => {
       const preferred = addresses.find((a) => a.isDefault) ?? addresses[0]
-      if (preferred) setActiveAddress(preferred)
+      // Automatic pick - not an explicit choice, so it doesn't override a live GPS/IP location.
+      if (preferred) setActiveAddress(preferred, { explicit: false })
     })
   }, [isAuthenticated, user, activeAddress, setActiveAddress])
 
