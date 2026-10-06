@@ -1,11 +1,12 @@
 import { apiClient } from '@/lib/apiClient'
+import { normalizeOrderStatus } from '@/lib/orderStatus'
 import { mockDelay, nextMockId } from '@/lib/mockUtils'
 import { toNumber } from '@/lib/format'
 import { estimateOrderPricing } from '@/lib/pricing'
 import { IS_MOCK } from '@/config/env'
 import { ordersByUser } from '@/mocks/fixtures/orders'
 import { restaurants } from '@/mocks/fixtures/restaurants'
-import type { Order, OrderDeliveryPartner, OrderItem, OrderItemAddon, OrderStatus, OrderSummary, OrderTimeline, PaymentMode, OrderDeliveryType } from '@/types/entities'
+import type { Order, OrderDeliveryPartner, OrderItem, OrderItemAddon, OrderStatus, OrderSummary, OrderTimeline, OrderTracking, PaymentMode, OrderDeliveryType, TrackingPoint } from '@/types/entities'
 
 export interface PlaceOrderInput {
   restaurantId: number
@@ -27,12 +28,17 @@ export interface PlaceOrderInput {
 const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
   PLACED: ['RESTAURANT_ACCEPTED', 'CANCELLED'],
   RESTAURANT_ACCEPTED: ['READY_FOR_PICKUP', 'CANCELLED'],
+  PREPARING: ['READY_FOR_PICKUP', 'CANCELLED'],
   READY_FOR_PICKUP: ['RIDER_ASSIGNED', 'SELF_PICKUP_COMPLETED'],
   RIDER_ASSIGNED: ['PICKED_UP'],
   PICKED_UP: ['DELIVERED'],
+  ON_THE_WAY: ['DELIVERED'],
   DELIVERED: [],
   SELF_PICKUP_COMPLETED: [],
   CANCELLED: [],
+  REJECTED: [],
+  RETURNED: [],
+  AUTO_CANCELLED: [],
 }
 
 function randomPin(): string {
@@ -96,7 +102,7 @@ function mapLiveOrder(d: LiveOrderDetail): Order {
   return {
     id: d.id,
     uniqueOrderId: d.uniqueOrderId,
-    status: d.status as OrderStatus,
+    status: normalizeOrderStatus(d.status),
     restaurantId: d.restaurant.id,
     restaurantName: d.restaurant.name,
     restaurantImage: d.restaurant.image ?? '',
@@ -117,7 +123,7 @@ function mapLiveOrder(d: LiveOrderDetail): Order {
     orderComment: d.orderComment,
     deliveryType: d.deliveryType === 1 ? 'SELF_PICKUP' : 'DELIVERY',
     createdAt: d.createdAt,
-    legalNextStatuses: d.legalNextStatuses as OrderStatus[],
+    legalNextStatuses: (d.legalNextStatuses ?? []).map(normalizeOrderStatus),
     pricingBreakdown: null,
     deliveryGuyId: d.deliveryGuyId,
     deliveryGuyName: d.deliveryGuyName,
@@ -193,7 +199,7 @@ export const orderService = {
       return (ordersByUser[userId] ?? []).map(toSummary).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     }
     const { data } = await apiClient.get<{ data: { id: number; uniqueOrderId: string; status: string; restaurantId: number; restaurantName?: string; restaurantImage?: string | null; total: string; createdAt: string; deliveryGuyName?: string | null }[] }>('/orders')
-    return data.data.map((o) => ({ id: o.id, uniqueOrderId: o.uniqueOrderId, status: o.status as OrderStatus, restaurantId: o.restaurantId, restaurantName: o.restaurantName ?? 'Restaurant', restaurantImage: o.restaurantImage ?? '', total: toNumber(o.total), payable: toNumber(o.total), createdAt: o.createdAt, isRated: false, deliveryGuyName: o.deliveryGuyName ?? null }))
+    return data.data.map((o) => ({ id: o.id, uniqueOrderId: o.uniqueOrderId, status: normalizeOrderStatus(o.status), restaurantId: o.restaurantId, restaurantName: o.restaurantName ?? 'Restaurant', restaurantImage: o.restaurantImage ?? '', total: toNumber(o.total), payable: toNumber(o.total), createdAt: o.createdAt, isRated: false, deliveryGuyName: o.deliveryGuyName ?? null }))
   },
 
   async get(userId: number, id: number): Promise<Order | undefined> {
@@ -217,7 +223,7 @@ export const orderService = {
       return order ? { status: order.status, updatedAt: order.createdAt } : undefined
     }
     const { data } = await apiClient.get<{ data: { status: string; updatedAt: string } }>(`/orders/${id}/status`)
-    return { status: data.data.status as OrderStatus, updatedAt: data.data.updatedAt }
+    return { status: normalizeOrderStatus(data.data.status), updatedAt: data.data.updatedAt }
   },
 
   async cancel(userId: number, id: number): Promise<void> {
@@ -260,13 +266,47 @@ export const orderService = {
     URL.revokeObjectURL(url)
   },
 
+  /**
+   * Live tracking data - polled by the tracking page while a rider is out on the order. Live mode
+   * reads GET /orders/{id}/tracking (rider position + path come from the rider app's GPS pings).
+   * Mock mode has no GPS feed, so it returns no rider position and the map falls back to its
+   * simulated marker.
+   */
+  async tracking(userId: number, id: number): Promise<OrderTracking | undefined> {
+    if (IS_MOCK) {
+      await mockDelay(120)
+      const order = (ordersByUser[userId] ?? []).find((o) => o.id === id)
+      if (!order) return undefined
+      return { status: order.status, restaurant: null, destination: null, rider: null, path: [] }
+    }
+    type WirePoint = { lat: number | string; lng: number | string } | null
+    const { data } = await apiClient.get<{
+      data: { status: string; restaurant: WirePoint; destination: WirePoint; rider: (WirePoint & { updatedAt: string | null; stale: boolean }) | null; path: WirePoint[] }
+    }>(`/orders/${id}/tracking`)
+    const point = (p: WirePoint): TrackingPoint | null => {
+      if (!p) return null
+      const lat = toNumber(p.lat)
+      const lng = toNumber(p.lng)
+      return lat || lng ? { lat, lng } : null
+    }
+    const d = data.data
+    const rider = d.rider ? point(d.rider) : null
+    return {
+      status: normalizeOrderStatus(d.status),
+      restaurant: point(d.restaurant),
+      destination: point(d.destination),
+      rider: rider && d.rider ? { ...rider, updatedAt: d.rider.updatedAt, stale: d.rider.stale } : null,
+      path: (d.path ?? []).map(point).filter((p): p is TrackingPoint => p !== null),
+    }
+  },
+
   async timeline(userId: number, id: number): Promise<OrderTimeline> {
     if (IS_MOCK) {
       await mockDelay(150)
       const order = Object.values(ordersByUser).flat().find((o) => o.id === id)
       const empty: OrderTimeline = { placedAt: null, restaurantAcceptedAt: null, restaurantReadyAt: null, riderAssignedAt: null, pickedUpAt: null, deliveredAt: null, selfPickupCompletedAt: null, cancelledAt: null }
       if (!order) return empty
-      const order_: Record<OrderStatus, keyof OrderTimeline> = {
+      const order_: Partial<Record<OrderStatus, keyof OrderTimeline>> = {
         PLACED: 'placedAt', RESTAURANT_ACCEPTED: 'restaurantAcceptedAt', READY_FOR_PICKUP: 'restaurantReadyAt',
         RIDER_ASSIGNED: 'riderAssignedAt', PICKED_UP: 'pickedUpAt', DELIVERED: 'deliveredAt',
         SELF_PICKUP_COMPLETED: 'selfPickupCompletedAt', CANCELLED: 'cancelledAt',
@@ -283,7 +323,8 @@ export const orderService = {
         timeline.selfPickupCompletedAt = order.createdAt
       } else {
         progression.slice(1, currentIndex + 1).forEach((status) => {
-          timeline[order_[status]] = order.createdAt
+          const field = order_[status]
+          if (field) timeline[field] = order.createdAt
         })
       }
       return timeline
