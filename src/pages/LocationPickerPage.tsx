@@ -41,7 +41,7 @@ interface PendingPoint {
 export default function LocationPickerPage() {
   const navigate = useNavigate()
   const { user, isAuthenticated } = useAuth()
-  const { activeAddress, detectedLocations, pickedLocation, setActiveAddress, setPickedLocation } = useActiveLocation()
+  const { activeAddress, detectedLocations, pickedLocation, explicitSource, setActiveAddress, setPickedLocation } = useActiveLocation()
   const appConfig = useAppConfig()
 
   // Opens already centered on wherever the app currently considers "here", instead of a hardcoded
@@ -50,7 +50,7 @@ export default function LocationPickerPage() {
   // at mount time so the map doesn't jump mid-visit as a background GPS fix resolves.
   const initialPoint = useMemo<PendingPoint | null>(() => {
     const sourcePriority = isAuthenticated ? appConfig.locationResolutionAuthenticatedPriority : appConfig.locationResolutionGuestPriority
-    const resolved = resolveActiveLocation({ activeAddress, detectedLocations, pickedLocation, sourcePriority })
+    const resolved = resolveActiveLocation({ activeAddress, detectedLocations, pickedLocation, sourcePriority, explicitSource })
     if (!resolved) return null
     return { latitude: resolved.latitude, longitude: resolved.longitude, label: resolved.secondary ?? resolved.primary, title: resolved.source === 'picked' ? pickedLocation?.title : undefined }
     // eslint-disable-next-line react-hooks/exhaustive-deps

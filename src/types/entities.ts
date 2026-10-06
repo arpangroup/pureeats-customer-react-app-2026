@@ -414,3 +414,24 @@ export interface OrderTracking {
   /** Where the rider has been since taking the order, oldest first. */
   path: TrackingPoint[]
 }
+
+/** GET /orders/{id}/delivery-partner - the rider profile shown in the tracking page's bottom sheet. */
+export interface DeliveryPartnerProfile {
+  id: number
+  name: string
+  photo: string | null
+  vehicleNumber: string | null
+  phone: string | null
+  verified: boolean
+  /** Null until the partner has been rated. */
+  rating: number | null
+  ratingCount: number
+  ratingBreakdown: { stars: number; count: number }[]
+  completedTrips: number
+  /** Deliveries this partner has completed for the signed-in customer before. */
+  deliveriesForYou: number
+  totalDistanceKm: number
+  memberSince: string | null
+  topCompliments: { label: string; count: number }[]
+  recentReviews: { rating: number; comment: string; reviewerName: string; createdAt: string | null }[]
+}
