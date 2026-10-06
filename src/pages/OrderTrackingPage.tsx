@@ -8,18 +8,25 @@ import { OrderTrackingMap } from '@/components/maps/OrderTrackingMap'
 import { RequireAuth } from '@/components/auth/RequireAuth'
 import { useAsync } from '@/hooks/useAsync'
 import { useOrderStatusUpdates } from '@/hooks/useOrderStatusUpdates'
+import { useLiveOrderTracking } from '@/hooks/useLiveOrderTracking'
 import { useAuth } from '@/hooks/useAuth'
 import { useActiveLocation } from '@/hooks/useLocation'
 import { useCart } from '@/hooks/useCart'
 import { orderService } from '@/services/orderService'
 import { restaurantService } from '@/services/restaurantService'
-import { orderStatusLabel, orderStatusTone } from '@/lib/orderStatus'
+import { orderStatusLabel, orderStatusTone, ACTIVE_STATUSES, RIDER_ON_THE_WAY_STATUSES } from '@/lib/orderStatus'
 import { formatCurrency, classNames } from '@/lib/format'
 import { IS_MOCK } from '@/config/env'
 import { useState } from 'react'
 import type { Order } from '@/types/entities'
 
-const TRACKABLE_STATUSES = ['PLACED', 'RESTAURANT_ACCEPTED', 'READY_FOR_PICKUP', 'RIDER_ASSIGNED', 'PICKED_UP']
+
+function timeSince(iso: string): string {
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000))
+  if (seconds < 90) return `${seconds}s`
+  const minutes = Math.round(seconds / 60)
+  return minutes < 90 ? `${minutes} min` : `${Math.round(minutes / 60)} h`
+}
 
 export default function OrderTrackingPage() {
   const { id } = useParams()
@@ -34,6 +41,7 @@ export default function OrderTrackingPage() {
   )
   const { data: timeline } = useAsync(() => (user ? orderService.timeline(user.id, orderId) : Promise.resolve(undefined)), [user?.id, orderId, order?.status])
   const { data: restaurant } = useAsync(() => (order ? restaurantService.get(order.restaurantId) : Promise.resolve(undefined)), [order?.restaurantId])
+  const tracking = useLiveOrderTracking(user?.id, orderId, order?.status)
   const cart = useCart()
   const [cancelling, setCancelling] = useState(false)
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
@@ -107,7 +115,12 @@ export default function OrderTrackingPage() {
   const canRate = order.status === 'DELIVERED' && !order.isRated
   const restaurantAccepted = order.status !== 'PLACED' && order.status !== 'CANCELLED'
 
-  const showMap = TRACKABLE_STATUSES.includes(order.status) && restaurant && activeAddress
+  // Prefer the order's own coordinates from the tracking feed - the address currently selected in
+  // the app may be a different one (or none, on a fresh device).
+  const mapRestaurant = tracking?.restaurant ?? (restaurant && (restaurant.latitude || restaurant.longitude) ? { lat: restaurant.latitude, lng: restaurant.longitude } : null)
+  const mapDestination = tracking?.destination ?? (activeAddress && (activeAddress.latitude || activeAddress.longitude) ? { lat: activeAddress.latitude, lng: activeAddress.longitude } : null)
+  const showMap = ACTIVE_STATUSES.includes(order.status) && !!mapRestaurant && !!mapDestination
+  const liveRider = RIDER_ON_THE_WAY_STATUSES.includes(order.status) ? tracking?.rider ?? null : null
   const statusToneClass = { brand: 'bg-brand-600', green: 'bg-emerald-600', red: 'bg-rose-600', slate: 'bg-slate-600' }[orderStatusTone(order.status)]
 
   return (
@@ -130,12 +143,25 @@ export default function OrderTrackingPage() {
       </div>
 
       {showMap && (
-        <OrderTrackingMap
-          restaurant={{ lat: restaurant.latitude, lng: restaurant.longitude }}
-          destination={{ lat: activeAddress.latitude, lng: activeAddress.longitude }}
-          status={order.status}
-          tall
-        />
+        <div className="relative">
+          <OrderTrackingMap
+            restaurant={mapRestaurant!}
+            destination={mapDestination!}
+            status={order.status}
+            rider={liveRider}
+            path={liveRider ? tracking?.path : []}
+            tall
+          />
+          {RIDER_ON_THE_WAY_STATUSES.includes(order.status) && (
+            <span className="absolute left-3 top-3 z-[400] rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow dark:bg-slate-900/95 dark:text-slate-200">
+              {liveRider
+                ? liveRider.stale
+                  ? `Last seen ${liveRider.updatedAt ? timeSince(liveRider.updatedAt) : 'a while'} ago`
+                  : '● Live location'
+                : 'Waiting for rider location…'}
+            </span>
+          )}
+        </div>
       )}
 
       <div

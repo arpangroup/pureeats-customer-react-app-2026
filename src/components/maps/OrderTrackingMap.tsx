@@ -1,37 +1,98 @@
+import { useEffect, useRef } from 'react'
 import { GoogleMap, MarkerF, Polyline } from '@react-google-maps/api'
 import { useGoogleMaps } from '@/lib/googleMaps'
 import { OsmOrderTrackingMap } from './OsmOrderTrackingMap'
 import { lerp, useRiderProgress, type LatLng } from '@/lib/orderTrackingProgress'
 import type { OrderStatus } from '@/types/entities'
 
-/** Restaurant + delivery-address markers, plus a simulated rider marker that eases along the route once a rider is assigned — purely cosmetic (no real GPS feed) but gives the tracking page a live feel. Full-bleed/taller (`tall`) for the order-tracking page's redesigned top-of-page layout. */
-export function OrderTrackingMap({ restaurant, destination, status, tall }: { restaurant: LatLng; destination: LatLng; status: OrderStatus; tall?: boolean }) {
+export interface LiveRider extends LatLng {
+  stale: boolean
+}
+
+export interface OrderTrackingMapProps {
+  restaurant: LatLng
+  destination: LatLng
+  status: OrderStatus
+  /** The rider's real GPS position (GET /orders/{id}/tracking). When absent the map falls back to a simulated marker. */
+  rider?: LiveRider | null
+  /** Where the rider has been on this order, oldest first - drawn as a solid trail. */
+  path?: LatLng[]
+  tall?: boolean
+}
+
+const BRAND = '#f2612c'
+
+/** Where the rider is heading next: the restaurant until pickup, then the customer. */
+function nextStop(status: OrderStatus, restaurant: LatLng, destination: LatLng): LatLng {
+  return status === 'RIDER_ASSIGNED' ? restaurant : destination
+}
+
+/**
+ * Restaurant + delivery-point markers and, once a rider is on the order, their LIVE position with
+ * the path they've driven (solid) and a dashed line to where they're heading next. Before the rider
+ * app has reported any fix it falls back to the old simulated marker easing along the route, so the
+ * page still feels alive. Full-bleed/taller (`tall`) for the tracking page's top-of-page layout.
+ */
+export function OrderTrackingMap(props: OrderTrackingMapProps) {
+  const { restaurant, destination, status, rider, path = [], tall } = props
   const { isLoaded, wantsGoogle } = useGoogleMaps()
   const progress = useRiderProgress(status)
+  const mapRef = useRef<google.maps.Map | null>(null)
+  const fittedForRider = useRef(false)
   const mapContainerStyle = { width: '100%', height: tall ? '340px' : '200px', borderRadius: tall ? '0' : '12px' }
 
-  // Same provider-selection rule as AddressMapPicker (see useGoogleMaps): Google whenever a key is
-  // configured and loads successfully, OSM otherwise.
-  if (!wantsGoogle) return <OsmOrderTrackingMap restaurant={restaurant} destination={destination} status={status} tall={tall} />
+  const live = !!rider
+  const riderPosition: LatLng | null = live
+    ? { lat: rider!.lat, lng: rider!.lng }
+    : status === 'RIDER_ASSIGNED' || status === 'PICKED_UP' || status === 'ON_THE_WAY'
+      ? lerp(restaurant, destination, status === 'RIDER_ASSIGNED' ? 0 : progress)
+      : null
+
+  // Frame everything once the first live fix arrives (and on first load) - later fixes just move the
+  // marker so the map doesn't jump while the customer is looking at it.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !isLoaded) return
+    if (live && fittedForRider.current) return
+    const bounds = new google.maps.LatLngBounds()
+    bounds.extend(restaurant)
+    bounds.extend(destination)
+    if (riderPosition && live) bounds.extend(riderPosition)
+    map.fitBounds(bounds, 48)
+    if (live) fittedForRider.current = true
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, live])
+
+  if (!wantsGoogle) return <OsmOrderTrackingMap {...props} />
   if (!isLoaded) return <div className="flex h-[200px] items-center justify-center text-xs text-slate-400">Loading map…</div>
 
-  const showRider = status === 'RIDER_ASSIGNED' || status === 'PICKED_UP' || status === 'DELIVERED'
-  const riderPosition = lerp(restaurant, destination, status === 'RIDER_ASSIGNED' ? 0 : progress)
-  const bounds = { lat: (restaurant.lat + destination.lat) / 2, lng: (restaurant.lng + destination.lng) / 2 }
+  const center = { lat: (restaurant.lat + destination.lat) / 2, lng: (restaurant.lng + destination.lng) / 2 }
+  const target = nextStop(status, restaurant, destination)
+  const dashed = { strokeOpacity: 0, icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.8, strokeColor: BRAND, scale: 3 }, offset: '0', repeat: '12px' }] }
 
   return (
     <GoogleMap
       mapContainerStyle={mapContainerStyle}
-      center={bounds}
+      center={center}
       zoom={13}
+      onLoad={(map) => {
+        mapRef.current = map
+      }}
       // 'greedy' — same reasoning as AddressMapPicker: plain drag/scroll instead of requiring
       // Ctrl+scroll or two fingers to zoom.
       options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false, zoomControl: false, gestureHandling: 'greedy' }}
     >
-      <Polyline path={[restaurant, destination]} options={{ strokeColor: '#f2612c', strokeOpacity: 0.5, strokeWeight: 3, icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.7 }, offset: '0', repeat: '12px' }] }} />
+      {live ? (
+        <>
+          {path.length > 0 && <Polyline path={[...path, riderPosition!]} options={{ strokeColor: BRAND, strokeOpacity: 0.9, strokeWeight: 4 }} />}
+          <Polyline path={[riderPosition!, target]} options={dashed} />
+        </>
+      ) : (
+        <Polyline path={[restaurant, destination]} options={{ ...dashed, icons: [{ ...dashed.icons[0], icon: { ...dashed.icons[0].icon, strokeOpacity: 0.5 } }] }} />
+      )}
       <MarkerF position={restaurant} label={{ text: '🍴', fontSize: '16px' }} />
       <MarkerF position={destination} label={{ text: '📍', fontSize: '16px' }} />
-      {showRider && status !== 'DELIVERED' && <MarkerF position={riderPosition} label={{ text: '🛵', fontSize: '16px' }} />}
+      {riderPosition && <MarkerF position={riderPosition} label={{ text: '🛵', fontSize: '18px' }} opacity={live && rider!.stale ? 0.55 : 1} zIndex={10} />}
     </GoogleMap>
   )
 }

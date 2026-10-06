@@ -227,15 +227,21 @@ export interface OrderTimeline {
   cancelledAt: string | null
 }
 
+/** Mirrors the backend's OrderStatusCode names - see normalizeOrderStatus (lib/orderStatus.ts), which every incoming status goes through. */
 export type OrderStatus =
   | 'PLACED'
   | 'RESTAURANT_ACCEPTED'
+  | 'PREPARING'
   | 'READY_FOR_PICKUP'
   | 'RIDER_ASSIGNED'
   | 'PICKED_UP'
+  | 'ON_THE_WAY'
   | 'DELIVERED'
   | 'SELF_PICKUP_COMPLETED'
   | 'CANCELLED'
+  | 'REJECTED'
+  | 'RETURNED'
+  | 'AUTO_CANCELLED'
 
 export interface OrderDeliveryPartner {
   id: number
@@ -390,4 +396,21 @@ export interface AppNotification {
   type: string | null
   isRead: boolean
   createdAt: string
+}
+
+export interface TrackingPoint {
+  lat: number
+  lng: number
+}
+
+/** GET /orders/{id}/tracking - the live tracking map's data. */
+export interface OrderTracking {
+  status: OrderStatus
+  restaurant: TrackingPoint | null
+  /** The order's own delivery point (not the address currently selected in the app). */
+  destination: TrackingPoint | null
+  /** Null until a rider is out on the order and their app has reported a position. */
+  rider: (TrackingPoint & { updatedAt: string | null; stale: boolean }) | null
+  /** Where the rider has been since taking the order, oldest first. */
+  path: TrackingPoint[]
 }
