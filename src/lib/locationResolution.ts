@@ -28,6 +28,10 @@ interface ResolveActiveLocationArgs {
   pickedLocation: DetectedLocation | null
   /** Which sources to try, in order — the caller passes AppConfig's authenticated/guest priority list (already resolved to a default if the backend config hasn't loaded), so this function stays a pure, backend-agnostic reducer. */
   sourcePriority: LocationSource[]
+  /** The source the customer last chose by hand (LocationContext.explicitSource) - tried before
+   * `sourcePriority`, as long as it's a source that list allows at all (so 'saved' still never
+   * applies to a guest). An explicit choice always beats a background GPS/IP fix. */
+  explicitSource?: LocationSource | null
 }
 
 export interface ResolvedActiveLocation {
@@ -39,8 +43,9 @@ export interface ResolvedActiveLocation {
 }
 
 /** Walks `sourcePriority` and returns the first source that has a resolved value — coordinates included, so this doubles as "where should the location picker's map open" (see LocationPickerPage) as well as feeding the label-only helpers below. Returns null only when nothing in sourcePriority has resolved yet (caller falls back to a plain label / a hardcoded default center). */
-export function resolveActiveLocation({ activeAddress, detectedLocations, pickedLocation, sourcePriority }: ResolveActiveLocationArgs): ResolvedActiveLocation | null {
-  for (const source of sourcePriority) {
+export function resolveActiveLocation({ activeAddress, detectedLocations, pickedLocation, sourcePriority, explicitSource }: ResolveActiveLocationArgs): ResolvedActiveLocation | null {
+  const order = explicitSource && sourcePriority.includes(explicitSource) ? [explicitSource, ...sourcePriority.filter((s) => s !== explicitSource)] : sourcePriority
+  for (const source of order) {
     if (source === 'saved' && activeAddress) {
       return {
         source,
