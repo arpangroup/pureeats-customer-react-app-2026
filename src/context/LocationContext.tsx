@@ -5,7 +5,8 @@ import type { Address } from '@/types/entities'
 const ACTIVE_ADDRESS_STORAGE_KEY = 'pureeats.activeAddress'
 const DETECTED_LOCATIONS_STORAGE_KEY = 'pureeats.lastDetectedLocations'
 const PICKED_LOCATION_STORAGE_KEY = 'pureeats.pickedLocation'
-const EXPLICIT_SOURCE_STORAGE_KEY = 'pureeats.explicitLocationSource'
+/** Old persisted copy of explicitSource - cleared on boot, since the choice is now per app session. */
+const LEGACY_EXPLICIT_SOURCE_STORAGE_KEY = 'pureeats.explicitLocationSource'
 
 /** Which manual choice the customer made last - see LocationContextValue.explicitSource. */
 export type ExplicitLocationSource = 'saved' | 'picked'
@@ -35,6 +36,10 @@ interface LocationContextValue {
    * tries this source FIRST, ahead of the AppConfig priority list - otherwise, with the default
    * gps-first priority, tapping a saved address changed the cart (which reads activeAddress
    * directly) but the home page kept showing the GPS location, as if the tap did nothing.
+   *
+   * Session-scoped on purpose (in memory, not persisted): every fresh app load starts from the
+   * configured priority again - so the current location is shown on open - and a choice made after
+   * that sticks across screens until the next reload.
    */
   explicitSource: ExplicitLocationSource | null
   detectedLocations: Partial<Record<DetectedLocationSource, DetectedLocation>>
@@ -64,15 +69,10 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     readStorage<Partial<Record<DetectedLocationSource, DetectedLocation>>>(DETECTED_LOCATIONS_STORAGE_KEY, {}),
   )
   const [pickedLocation, setPickedLocationState] = useState<DetectedLocation | null>(() => readStorage<DetectedLocation | null>(PICKED_LOCATION_STORAGE_KEY, null))
-  const [explicitSource, setExplicitSourceState] = useState<ExplicitLocationSource | null>(() =>
-    readStorage<ExplicitLocationSource | null>(EXPLICIT_SOURCE_STORAGE_KEY, null),
-  )
-
-  const setExplicitSource = useCallback((source: ExplicitLocationSource | null) => {
-    if (source) writeStorage(EXPLICIT_SOURCE_STORAGE_KEY, source)
-    else removeStorage(EXPLICIT_SOURCE_STORAGE_KEY)
-    setExplicitSourceState(source)
-  }, [])
+  const [explicitSource, setExplicitSource] = useState<ExplicitLocationSource | null>(() => {
+    removeStorage(LEGACY_EXPLICIT_SOURCE_STORAGE_KEY)
+    return null
+  })
 
   const setActiveAddress = useCallback(
     (address: Address, options?: { explicit?: boolean }) => {
@@ -80,7 +80,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       setActiveAddressState(address)
       if (options?.explicit !== false) setExplicitSource('saved')
     },
-    [setExplicitSource],
+    [],
   )
 
   const setDetectedLocation = useCallback((source: DetectedLocationSource, location: DetectedLocation | null) => {
@@ -97,12 +97,9 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       else removeStorage(PICKED_LOCATION_STORAGE_KEY)
       setPickedLocationState(location)
       if (location) setExplicitSource('picked')
-      else setExplicitSourceState((current) => {
-        if (current === 'picked') removeStorage(EXPLICIT_SOURCE_STORAGE_KEY)
-        return current === 'picked' ? null : current
-      })
+      else setExplicitSource((current) => (current === 'picked' ? null : current))
     },
-    [setExplicitSource],
+    [],
   )
 
   const value = useMemo<LocationContextValue>(

@@ -145,7 +145,9 @@ export default function OrderTrackingPage() {
       </div>
 
       {showMap && (
-        <div className="relative">
+        // `isolate` keeps Leaflet's own high z-index panes (400+) inside the map, so sheets/dialogs
+        // opened on this page (z-50) aren't drawn underneath it.
+        <div className="relative isolate">
           <OrderTrackingMap
             restaurant={mapRestaurant!}
             destination={mapDestination!}
