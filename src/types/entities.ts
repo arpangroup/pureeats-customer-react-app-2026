@@ -236,6 +236,7 @@ export type OrderStatus =
   | 'RIDER_ASSIGNED'
   | 'PICKED_UP'
   | 'ON_THE_WAY'
+  | 'ARRIVED'
   | 'DELIVERED'
   | 'SELF_PICKUP_COMPLETED'
   | 'CANCELLED'

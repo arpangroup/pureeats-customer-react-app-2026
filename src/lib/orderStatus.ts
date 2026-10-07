@@ -1,9 +1,9 @@
 import type { OrderStatus } from '@/types/entities'
 
-export const ACTIVE_STATUSES: OrderStatus[] = ['PLACED', 'RESTAURANT_ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'RIDER_ASSIGNED', 'PICKED_UP', 'ON_THE_WAY']
+export const ACTIVE_STATUSES: OrderStatus[] = ['PLACED', 'RESTAURANT_ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'RIDER_ASSIGNED', 'PICKED_UP', 'ON_THE_WAY', 'ARRIVED']
 
 /** A rider is physically on the order - the tracking map shows their live position. */
-export const RIDER_ON_THE_WAY_STATUSES: OrderStatus[] = ['RIDER_ASSIGNED', 'PICKED_UP', 'ON_THE_WAY']
+export const RIDER_ON_THE_WAY_STATUSES: OrderStatus[] = ['RIDER_ASSIGNED', 'PICKED_UP', 'ON_THE_WAY', 'ARRIVED']
 
 /**
  * The backend's OrderStatusCode, keyed by both its constant name and its display label - order
@@ -25,6 +25,7 @@ const BY_NAME_OR_LABEL: Record<string, OrderStatus> = {
   'picked up': 'PICKED_UP',
   on_the_way: 'ON_THE_WAY',
   'on the way': 'ON_THE_WAY',
+  arrived: 'ARRIVED',
   delivered: 'DELIVERED',
   self_pickup_completed: 'SELF_PICKUP_COMPLETED',
   'delivered (self-pickup)': 'SELF_PICKUP_COMPLETED',
@@ -50,6 +51,7 @@ export function orderStatusLabel(status: OrderStatus, riderName?: string | null)
     RIDER_ASSIGNED: riderName ? `${riderName} is heading to the restaurant` : 'Driver assigned',
     PICKED_UP: riderName ? `${riderName} picked up your order` : 'Out for delivery',
     ON_THE_WAY: riderName ? `${riderName} is on the way` : 'On the way',
+    ARRIVED: riderName ? `${riderName} has arrived` : 'Your delivery partner has arrived',
     DELIVERED: 'Delivered',
     SELF_PICKUP_COMPLETED: 'Picked up',
     CANCELLED: 'Cancelled',

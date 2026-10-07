@@ -35,8 +35,8 @@ export function OsmOrderTrackingMap({ restaurant, destination, status, rider, pa
   const live = !!rider
   const riderPosition: LatLng | null = live
     ? { lat: rider!.lat, lng: rider!.lng }
-    : status === 'RIDER_ASSIGNED' || status === 'PICKED_UP' || status === 'ON_THE_WAY'
-      ? lerp(restaurant, destination, status === 'RIDER_ASSIGNED' ? 0 : progress)
+    : status === 'RIDER_ASSIGNED' || status === 'PICKED_UP' || status === 'ON_THE_WAY' || status === 'ARRIVED'
+      ? lerp(restaurant, destination, status === 'RIDER_ASSIGNED' ? 0 : status === 'ARRIVED' ? 1 : progress)
       : null
 
   useEffect(() => {
