@@ -22,6 +22,8 @@ export interface PlaceOrderInput {
   razorpayOrderId?: string
   razorpayPaymentId?: string
   razorpaySignature?: string
+  /** The total shown to the customer - the server refuses the order if its own total differs (PRICE_CHANGED). */
+  expectedPayable?: number
 }
 
 /** Every status a legal next transition can lead to — mirrors the backend's OrderTransitionService state machine. */
@@ -178,7 +180,8 @@ export const orderService = {
     const { data } = await apiClient.post<{ data: LiveOrderDetail }>('/orders', {
       restaurantId: input.restaurantId,
       addressId: input.addressId,
-      items: input.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity, selectedAddonIds: null })),
+      // Add-ons must be sent - the server prices the order from these, so dropping them charged the order without them.
+      items: input.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity, selectedAddonIds: i.addons.map((a) => a.addonId).filter((id): id is number => id != null) })),
       // The backend's PaymentMode enum has no bare UPI value — it names payment by gateway
       // (COD, WALLET, RAZORPAY, PAYTM, ...) since only COD/WALLET are actually processed server-side;
       // everything else is just recorded. RAZORPAY is the closest real value for "paid via UPI".
@@ -190,6 +193,7 @@ export const orderService = {
       razorpayOrderId: input.razorpayOrderId ?? null,
       razorpayPaymentId: input.razorpayPaymentId ?? null,
       razorpaySignature: input.razorpaySignature ?? null,
+      expectedPayable: input.expectedPayable ?? null,
     })
     return mapLiveOrder(data.data)
   },

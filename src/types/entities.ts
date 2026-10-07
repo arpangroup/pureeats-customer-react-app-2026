@@ -179,6 +179,8 @@ export interface CartLine {
 }
 
 export interface OrderItemAddon {
+  /** Present when ordering from the cart - the server prices add-ons by id. */
+  addonId?: number
   addonCategoryName: string
   addonName: string
   addonPrice: number

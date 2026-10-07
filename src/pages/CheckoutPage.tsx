@@ -49,7 +49,7 @@ export default function CheckoutPage() {
 
   const { data: restaurant } = useAsync(() => (cart.restaurantId ? restaurantService.get(cart.restaurantId) : Promise.resolve(undefined)), [cart.restaurantId])
   const { data: walletBalance } = useAsync(() => (user ? walletService.balance(user.id) : Promise.resolve(0)), [user?.id])
-  const { result: validation } = useCartValidation()
+  const { result: validation, priceConfirmed, isValidating, refresh: refreshValidation } = useCartValidation()
   const { razorpayKeyId } = useAppConfig()
   const razorpayConfigured = !!razorpayKeyId
   // Admin-controlled via Settings → Payment gateways (GET /payment-gateways, active-only) — every
@@ -172,7 +172,7 @@ export default function CheckoutPage() {
         restaurantId: cart.restaurantId,
         addressId: needsAddress ? activeAddress!.id : 0,
         address: needsAddress ? `${activeAddress!.house}, ${activeAddress!.address}` : `${restaurant?.name ?? 'Restaurant'} (self pickup)`,
-        items: cart.lines.map((l) => ({ itemId: l.itemId, name: l.name, price: l.price, quantity: l.quantity, addons: l.addons.map((a) => ({ addonCategoryName: a.addonCategoryName, addonName: a.addonName, addonPrice: a.addonPrice })) })),
+        items: cart.lines.map((l) => ({ itemId: l.itemId, name: l.name, price: l.price, quantity: l.quantity, addons: l.addons.map((a) => ({ addonId: a.addonId, addonCategoryName: a.addonCategoryName, addonName: a.addonName, addonPrice: a.addonPrice })) })),
         paymentMode,
         deliveryType: cart.deliveryType,
         coupon: cart.coupon,
@@ -181,11 +181,15 @@ export default function CheckoutPage() {
         razorpayOrderId: razorpayPayment?.razorpayOrderId,
         razorpayPaymentId: razorpayPayment?.razorpayPaymentId,
         razorpaySignature: razorpayPayment?.razorpaySignature,
+        // Only a server-validated total is sent; the server refuses the order if the price changed meanwhile.
+        expectedPayable: validation ? pricing.payable : undefined,
       } satisfies PlaceOrderInput)
       cart.clearCart()
       navigate(`/orders/${order.id}/confirmation`, { replace: true })
     } catch (err) {
       setError((err as { message?: string })?.message ?? 'Could not place your order. Please try again.')
+      // 409 PRICE_CHANGED: fetch the current total so the button shows what will actually be charged.
+      if ((err as { status?: number })?.status === 409) refreshValidation()
     } finally {
       setPlacing(false)
     }
@@ -302,11 +306,15 @@ export default function CheckoutPage() {
         ) : (
           <button
             className="btn-primary mt-4 w-full"
-            disabled={placing || walletInsufficient}
+            disabled={placing || walletInsufficient || !priceConfirmed}
             onClick={useRazorpayCheckout ? handleRazorpayCheckout : upiOnMobile ? handleOpenUpiApp : handlePlaceOrder}
           >
             {placing
               ? 'Placing order…'
+              : !priceConfirmed
+                ? isValidating
+                  ? 'Calculating total…'
+                  : "Couldn't calculate the total - go back to the cart"
               : useRazorpayCheckout
                 ? `Pay ${formatCurrency(pricing.payable)}`
                 : upiOnMobile
