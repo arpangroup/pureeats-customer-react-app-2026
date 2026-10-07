@@ -27,6 +27,8 @@ export function useCartValidation() {
   const [result, setResult] = useState<CartValidationResult | null>(null)
   const [guestQuote, setGuestQuote] = useState<DeliveryQuote | null>(null)
   const [isValidating, setIsValidating] = useState(false)
+  /** Bumped to re-run the validation with unchanged inputs (e.g. after the server said the price changed). */
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const restaurantId = cart.restaurantId
   const hasItems = cart.lines.length > 0
@@ -63,7 +65,7 @@ export function useCartValidation() {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user?.id, restaurantId, hasItems, itemsKey, cart.coupon?.code, cart.deliveryType, addressId, addressLat, addressLng])
+  }, [isAuthenticated, user?.id, restaurantId, hasItems, itemsKey, cart.coupon?.code, cart.deliveryType, addressId, addressLat, addressLng, refreshKey])
 
   useEffect(() => {
     if (IS_MOCK || isAuthenticated || !restaurantId || cart.deliveryType !== 'DELIVERY') {
@@ -86,5 +88,11 @@ export function useCartValidation() {
     }
   }, [isAuthenticated, restaurantId, cart.deliveryType])
 
-  return { result, guestQuote, isValidating }
+  /**
+   * True when the amounts shown are the server's own (or there's no server to ask - mock mode / guest).
+   * Signed in and still false = the numbers are only a client-side estimate (a flat delivery charge that
+   * ignores distance-based rates), so they mustn't be shown as final or used to place/pay an order.
+   */
+  const priceConfirmed = IS_MOCK || !isAuthenticated || result !== null
+  return { result, guestQuote, isValidating, priceConfirmed, refresh: () => setRefreshKey((k) => k + 1) }
 }

@@ -31,7 +31,7 @@ export default function CartPage() {
   const config = useAppConfig()
   const { data: restaurant } = useAsync(() => (cart.restaurantId ? restaurantService.get(cart.restaurantId) : Promise.resolve(undefined)), [cart.restaurantId])
   const { data: restaurantCoupons } = useAsync(() => (cart.restaurantId ? couponService.listForRestaurant(cart.restaurantId) : Promise.resolve([])), [cart.restaurantId])
-  const { result: validation, guestQuote } = useCartValidation()
+  const { result: validation, guestQuote, priceConfirmed, isValidating } = useCartValidation()
   const [tab, setTab] = useState<CartTab>('delivery')
   const [loginSheetOpen, setLoginSheetOpen] = useState(false)
   const [couponRemovedNotice, setCouponRemovedNotice] = useState<string | null>(null)
@@ -255,13 +255,19 @@ export default function CartPage() {
             {cart.deliveryType === 'DELIVERY' && distanceKm != null && (
               <Row label="Distance" value={`${distanceKm.toFixed(1)} km`} icon={<RouteIcon size={13} className="text-slate-400" />} />
             )}
-            <Row label="Delivery charge" value={pricing.deliveryCharge === 0 ? 'FREE' : formatCurrency(pricing.deliveryCharge)} tone={pricing.deliveryCharge === 0 ? 'text-emerald-600' : undefined} />
+            {/* Never show the flat client estimate as the delivery charge for a signed-in customer - stores with
+                distance-based rates charge more, which showed e.g. ₹20 here and charged ₹30 on the order. */}
+            <Row
+              label="Delivery charge"
+              value={!priceConfirmed ? (isValidating ? 'Calculating…' : '—') : pricing.deliveryCharge === 0 ? 'FREE' : formatCurrency(pricing.deliveryCharge)}
+              tone={priceConfirmed && pricing.deliveryCharge === 0 ? 'text-emerald-600' : undefined}
+            />
             {cart.tipAmount > 0 && cart.deliveryType === 'DELIVERY' && <Row label="Delivery tip" value={formatCurrency(cart.tipAmount)} />}
             {pricing.platformFee > 0 && <Row label="Platform fee" value={formatCurrency(pricing.platformFee)} />}
             <Row label="Taxes" value={formatCurrency(pricing.tax)} />
             <div className="mt-1.5 flex items-center justify-between border-t border-slate-100 pt-1.5 text-base font-bold text-slate-800 dark:border-slate-800 dark:text-slate-100">
               <span>To pay</span>
-              <span>{formatCurrency(pricing.payable)}</span>
+              <span>{priceConfirmed ? formatCurrency(pricing.payable) : isValidating ? 'Calculating…' : '—'}</span>
             </div>
           </div>
         </div>
