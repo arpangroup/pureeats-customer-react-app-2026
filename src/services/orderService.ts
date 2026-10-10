@@ -92,6 +92,8 @@ interface LiveOrderDetail {
   deliveryPartner: { id: number; name: string; phone: string | null; photo: string | null; vehicleNumber: string | null } | null
   etaMinutes?: number | null
   etaSlowdownFactor?: number | null
+  addressLandmark?: string | null
+  addressTag?: string | null
 }
 
 function mapLiveItem(i: LiveOrderDetail['items'][number]): OrderItem {
@@ -136,6 +138,8 @@ function mapLiveOrder(d: LiveOrderDetail): Order {
     isRated: false,
     etaMinutes: d.etaMinutes ?? null,
     etaSlowdownFactor: d.etaSlowdownFactor ?? null,
+    addressLandmark: d.addressLandmark ?? null,
+    addressTag: d.addressTag ?? null,
   }
 }
 
