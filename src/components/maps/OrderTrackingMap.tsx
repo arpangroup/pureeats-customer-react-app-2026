@@ -80,7 +80,7 @@ export function OrderTrackingMap(props: OrderTrackingMapProps) {
       }}
       // 'greedy' — same reasoning as AddressMapPicker: plain drag/scroll instead of requiring
       // Ctrl+scroll or two fingers to zoom.
-      options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false, zoomControl: false, gestureHandling: 'greedy' }}
+      options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false, zoomControl: false, cameraControl: false, gestureHandling: 'greedy' }}
     >
       {live ? (
         <>

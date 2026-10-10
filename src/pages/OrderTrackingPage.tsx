@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Bike, ChevronRight, Download, KeyRound, LifeBuoy, MapPin, Phone, RotateCcw, Star } from 'lucide-react'
+import { Bike, ChevronRight, Clock,Download, KeyRound, LifeBuoy, MapPin, Phone, RotateCcw, Star } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { LoadingBlock, EmptyState } from '@/components/ui/Feedback'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -16,6 +16,7 @@ import { useCart } from '@/hooks/useCart'
 import { orderService } from '@/services/orderService'
 import { restaurantService } from '@/services/restaurantService'
 import { orderStatusLabel, orderStatusTone, ACTIVE_STATUSES, RIDER_ON_THE_WAY_STATUSES } from '@/lib/orderStatus'
+import { ARRIVING_SOON_SECONDS, formatEtaClock, useBufferedEta } from '@/lib/eta'
 import { formatCurrency, classNames } from '@/lib/format'
 import { IS_MOCK } from '@/config/env'
 import { useState } from 'react'
@@ -99,6 +100,9 @@ export default function OrderTrackingPage() {
     }
   }
 
+  // Buffered (slowed-down) ETA while the order is on its way - see lib/eta.
+  const etaSeconds = useBufferedEta(order?.etaMinutes, order?.createdAt, order?.etaSlowdownFactor, !!order && ACTIVE_STATUSES.includes(order.status))
+
   if (!isAuthenticated) {
     return (
       <div>
@@ -141,6 +145,15 @@ export default function OrderTrackingPage() {
 
       <div className={classNames('px-4 py-4 text-center text-white', statusToneClass)}>
         <p className="text-lg font-bold">{orderStatusLabel(order.status, order.deliveryPartner?.name)}</p>
+        {etaSeconds !== null && (
+          <p className="mt-1 text-sm font-semibold text-white/95">
+            {etaSeconds <= ARRIVING_SOON_SECONDS
+              ? order.deliveryType === 'SELF_PICKUP'
+                ? 'Ready any moment'
+                : 'Arriving soon'
+              : `${order.deliveryType === 'SELF_PICKUP' ? 'Ready in' : 'Arriving in'} ${formatEtaClock(etaSeconds)}`}
+          </p>
+        )}
         <p className="mt-0.5 text-xs text-white/80">Order {order.uniqueOrderId}</p>
       </div>
 
@@ -164,6 +177,20 @@ export default function OrderTrackingPage() {
                   : '● Live location'
                 : 'Waiting for rider location…'}
             </span>
+          )}
+          {etaSeconds !== null && (
+            // bottom-10 clears the details sheet, which overlaps the map's bottom edge (-mt-6).
+            <div className="absolute bottom-10 right-3 z-[400] flex items-center gap-2 rounded-2xl bg-white/95 px-3 py-2 shadow-lg dark:bg-slate-900/95">
+              <Clock size={16} className="shrink-0 text-brand-600" />
+              <div className="text-right leading-tight">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  {order.deliveryType === 'SELF_PICKUP' ? 'Ready in' : 'ETA'}
+                </p>
+                <p className="text-sm font-bold tabular-nums text-slate-900 dark:text-slate-100">
+                  {etaSeconds <= ARRIVING_SOON_SECONDS ? (order.deliveryType === 'SELF_PICKUP' ? 'Any moment' : 'Arriving soon') : formatEtaClock(etaSeconds)}
+                </p>
+              </div>
+            </div>
           )}
         </div>
       )}
