@@ -90,6 +90,8 @@ interface LiveOrderDetail {
   deliveryGuyId: number | null
   deliveryGuyName: string | null
   deliveryPartner: { id: number; name: string; phone: string | null; photo: string | null; vehicleNumber: string | null } | null
+  etaMinutes?: number | null
+  etaSlowdownFactor?: number | null
 }
 
 function mapLiveItem(i: LiveOrderDetail['items'][number]): OrderItem {
@@ -132,6 +134,8 @@ function mapLiveOrder(d: LiveOrderDetail): Order {
     deliveryGuyName: d.deliveryGuyName,
     deliveryPartner: mapLiveDeliveryPartner(d.deliveryPartner),
     isRated: false,
+    etaMinutes: d.etaMinutes ?? null,
+    etaSlowdownFactor: d.etaSlowdownFactor ?? null,
   }
 }
 
@@ -203,8 +207,8 @@ export const orderService = {
       await mockDelay()
       return (ordersByUser[userId] ?? []).map(toSummary).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     }
-    const { data } = await apiClient.get<{ data: { id: number; uniqueOrderId: string; status: string; restaurantId: number; restaurantName?: string; restaurantImage?: string | null; total: string; createdAt: string; deliveryGuyName?: string | null }[] }>('/orders')
-    return data.data.map((o) => ({ id: o.id, uniqueOrderId: o.uniqueOrderId, status: normalizeOrderStatus(o.status), restaurantId: o.restaurantId, restaurantName: o.restaurantName ?? 'Restaurant', restaurantImage: o.restaurantImage ?? '', total: toNumber(o.total), payable: toNumber(o.total), createdAt: o.createdAt, isRated: false, deliveryGuyName: o.deliveryGuyName ?? null }))
+    const { data } = await apiClient.get<{ data: { id: number; uniqueOrderId: string; status: string; restaurantId: number; restaurantName?: string; restaurantImage?: string | null; total: string; createdAt: string; deliveryGuyName?: string | null; etaMinutes?: number | null; etaSlowdownFactor?: number | null }[] }>('/orders')
+    return data.data.map((o) => ({ id: o.id, uniqueOrderId: o.uniqueOrderId, status: normalizeOrderStatus(o.status), restaurantId: o.restaurantId, restaurantName: o.restaurantName ?? 'Restaurant', restaurantImage: o.restaurantImage ?? '', total: toNumber(o.total), payable: toNumber(o.total), createdAt: o.createdAt, isRated: false, deliveryGuyName: o.deliveryGuyName ?? null, etaMinutes: o.etaMinutes ?? null, etaSlowdownFactor: o.etaSlowdownFactor ?? null }))
   },
 
   async get(userId: number, id: number): Promise<Order | undefined> {

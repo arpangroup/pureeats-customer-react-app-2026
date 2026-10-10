@@ -16,6 +16,7 @@ import { useCart } from '@/hooks/useCart'
 import { orderService } from '@/services/orderService'
 import { restaurantService } from '@/services/restaurantService'
 import { orderStatusLabel, orderStatusTone, ACTIVE_STATUSES, RIDER_ON_THE_WAY_STATUSES } from '@/lib/orderStatus'
+import { ARRIVING_SOON_SECONDS, formatEtaClock, useBufferedEta } from '@/lib/eta'
 import { formatCurrency, classNames } from '@/lib/format'
 import { IS_MOCK } from '@/config/env'
 import { useState } from 'react'
@@ -99,6 +100,9 @@ export default function OrderTrackingPage() {
     }
   }
 
+  // Buffered (slowed-down) ETA while the order is on its way - see lib/eta.
+  const etaSeconds = useBufferedEta(order?.etaMinutes, order?.createdAt, order?.etaSlowdownFactor, !!order && ACTIVE_STATUSES.includes(order.status))
+
   if (!isAuthenticated) {
     return (
       <div>
@@ -141,6 +145,15 @@ export default function OrderTrackingPage() {
 
       <div className={classNames('px-4 py-4 text-center text-white', statusToneClass)}>
         <p className="text-lg font-bold">{orderStatusLabel(order.status, order.deliveryPartner?.name)}</p>
+        {etaSeconds !== null && (
+          <p className="mt-1 text-sm font-semibold text-white/95">
+            {etaSeconds <= ARRIVING_SOON_SECONDS
+              ? order.deliveryType === 'SELF_PICKUP'
+                ? 'Ready any moment'
+                : 'Arriving soon'
+              : `${order.deliveryType === 'SELF_PICKUP' ? 'Ready in' : 'Arriving in'} ${formatEtaClock(etaSeconds)}`}
+          </p>
+        )}
         <p className="mt-0.5 text-xs text-white/80">Order {order.uniqueOrderId}</p>
       </div>
 

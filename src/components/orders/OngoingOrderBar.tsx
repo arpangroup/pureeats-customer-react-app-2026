@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { ARRIVING_SOON_SECONDS, useBufferedEta } from '@/lib/eta'
 import { useNavigate } from 'react-router-dom'
 import { Bike, ChevronRight } from 'lucide-react'
 import { useAsync } from '@/hooks/useAsync'
@@ -43,6 +44,7 @@ export function OngoingOrderBar() {
   }, [user?.id, hasFirebaseConfig])
 
   const activeOrder = orders?.find((o) => ACTIVE_STATUSES.includes(o.status))
+  const etaSeconds = useBufferedEta(activeOrder?.etaMinutes, activeOrder?.createdAt, activeOrder?.etaSlowdownFactor, !!activeOrder)
   if (!activeOrder) return null
 
   return (
@@ -63,6 +65,7 @@ export function OngoingOrderBar() {
         <p className="truncate text-sm font-bold leading-tight text-slate-800 dark:text-slate-100">{activeOrder.restaurantName}</p>
         <p className="truncate text-[11px] font-medium leading-tight text-brand-600 dark:text-brand-400">
           {orderStatusLabel(activeOrder.status, activeOrder.deliveryGuyName)}
+          {etaSeconds !== null && (etaSeconds <= ARRIVING_SOON_SECONDS ? ' · arriving soon' : ` · ~${Math.ceil(etaSeconds / 60)} min`)}
         </p>
       </span>
       <span className="flex shrink-0 items-center gap-0.5 rounded-xl bg-brand-600 px-3 py-2.5 text-xs font-bold text-white">
