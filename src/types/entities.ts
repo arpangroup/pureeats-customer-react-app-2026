@@ -284,6 +284,10 @@ export interface Order {
   deliveryGuyName: string | null
   deliveryPartner: OrderDeliveryPartner | null
   isRated: boolean
+  /** Base ETA = prep (T1) + partner to restaurant (T2) + travel (T3), minutes from createdAt. Null for older orders. */
+  etaMinutes?: number | null
+  /** The countdown runs this many times slower than real time (default 1.5). */
+  etaSlowdownFactor?: number | null
 }
 
 /** The shape GET /orders (list) actually returns — lighter than the full Order the detail/tracking endpoints return. */
@@ -299,6 +303,8 @@ export interface OrderSummary {
   createdAt: string
   isRated: boolean
   deliveryGuyName: string | null
+  etaMinutes?: number | null
+  etaSlowdownFactor?: number | null
 }
 
 export type AppUpdateSeverity = 'NONE' | 'SOFT' | 'HARD'
