@@ -1,4 +1,5 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { AddressSummary } from '@/components/location/AddressSummary'
 import { Bike, ChevronRight, Clock,Download, KeyRound, LifeBuoy, MapPin, Phone, RotateCcw, Star } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { LoadingBlock, EmptyState } from '@/components/ui/Feedback'
@@ -284,7 +285,7 @@ export default function OrderTrackingPage() {
           <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200">
             <MapPin size={15} className="text-brand-600" /> Delivery address
           </p>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{order.address}</p>
+          <AddressSummary tag={order.addressTag} address={order.address} landmark={order.addressLandmark} />
         </div>
 
         <div className="card mt-4 divide-y divide-slate-100 p-4 dark:divide-slate-800">

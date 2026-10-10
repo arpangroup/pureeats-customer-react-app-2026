@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AddressSummary } from '@/components/location/AddressSummary'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Banknote, CheckCircle2, CreditCard, Smartphone, Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -229,10 +230,14 @@ export default function CheckoutPage() {
       <PageHeader title="Checkout" />
       <div className="mx-auto max-w-lg px-4 py-4">
         <div className="card p-4">
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{needsAddress ? 'Delivering to' : 'Pickup from'}</p>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {needsAddress ? `${activeAddress!.house}, ${activeAddress!.address}` : `${restaurant?.name ?? ''}, ${restaurant?.address ?? ''}`}
-          </p>
+          {needsAddress ? (
+            <AddressSummary tag={activeAddress!.tag} house={activeAddress!.house} address={activeAddress!.address} landmark={activeAddress!.landmark} title="Delivering to" />
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Pickup from</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{`${restaurant?.name ?? ''}, ${restaurant?.address ?? ''}`}</p>
+            </>
+          )}
         </div>
 
         <div className="card mt-4 p-4">
