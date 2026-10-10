@@ -5,7 +5,7 @@ name: Deploy customer app
 # repo for how that server/user was provisioned).
 on:
   push:
-    branches: [main]
+    branches: [release/2026.10.10]
   workflow_dispatch: {}
 
 concurrency:
