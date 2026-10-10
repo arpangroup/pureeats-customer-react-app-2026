@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Bike, ChevronRight, Download, KeyRound, LifeBuoy, MapPin, Phone, RotateCcw, Star } from 'lucide-react'
+import { Bike, ChevronRight, Clock,Download, KeyRound, LifeBuoy, MapPin, Phone, RotateCcw, Star } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { LoadingBlock, EmptyState } from '@/components/ui/Feedback'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -177,6 +177,20 @@ export default function OrderTrackingPage() {
                   : '● Live location'
                 : 'Waiting for rider location…'}
             </span>
+          )}
+          {etaSeconds !== null && (
+            // bottom-10 clears the details sheet, which overlaps the map's bottom edge (-mt-6).
+            <div className="absolute bottom-10 right-3 z-[400] flex items-center gap-2 rounded-2xl bg-white/95 px-3 py-2 shadow-lg dark:bg-slate-900/95">
+              <Clock size={16} className="shrink-0 text-brand-600" />
+              <div className="text-right leading-tight">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  {order.deliveryType === 'SELF_PICKUP' ? 'Ready in' : 'ETA'}
+                </p>
+                <p className="text-sm font-bold tabular-nums text-slate-900 dark:text-slate-100">
+                  {etaSeconds <= ARRIVING_SOON_SECONDS ? (order.deliveryType === 'SELF_PICKUP' ? 'Any moment' : 'Arriving soon') : formatEtaClock(etaSeconds)}
+                </p>
+              </div>
+            </div>
           )}
         </div>
       )}
