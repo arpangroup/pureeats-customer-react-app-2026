@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { GoogleMap, MarkerF, Polyline } from '@react-google-maps/api'
+import { GoogleMap, MarkerF, PolylineF } from '@react-google-maps/api'
 import { useGoogleMaps } from '@/lib/googleMaps'
 import { OsmOrderTrackingMap } from './OsmOrderTrackingMap'
 import { lerp, useRiderProgress, type LatLng } from '@/lib/orderTrackingProgress'
@@ -29,7 +29,7 @@ function nextStop(status: OrderStatus, restaurant: LatLng, destination: LatLng):
 
 /**
  * Restaurant + delivery-point markers and, once a rider is on the order, their LIVE position with
- * the path they've driven (solid) and a dashed line to where they're heading next. Before the rider
+ * the path they've driven and a highlighted solid line to where they're heading next. Before the rider
  * app has reported any fix it falls back to the old simulated marker easing along the route, so the
  * page still feels alive. Full-bleed/taller (`tall`) for the tracking page's top-of-page layout.
  */
@@ -68,7 +68,9 @@ export function OrderTrackingMap(props: OrderTrackingMapProps) {
 
   const center = { lat: (restaurant.lat + destination.lat) / 2, lng: (restaurant.lng + destination.lng) / 2 }
   const target = nextStop(status, restaurant, destination)
-  const dashed = { strokeOpacity: 0, icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.8, strokeColor: BRAND, scale: 3 }, offset: '0', repeat: '12px' }] }
+  // Solid route, highlighted: a wider white casing under the brand-coloured line so it stands out on any map tile.
+  const casing = { strokeColor: '#ffffff', strokeOpacity: 0.95, strokeWeight: 8, zIndex: 1 }
+  const route = { strokeColor: BRAND, strokeOpacity: 1, strokeWeight: 5, zIndex: 2 }
 
   return (
     <GoogleMap
@@ -84,11 +86,15 @@ export function OrderTrackingMap(props: OrderTrackingMapProps) {
     >
       {live ? (
         <>
-          {path.length > 0 && <Polyline path={[...path, riderPosition!]} options={{ strokeColor: BRAND, strokeOpacity: 0.9, strokeWeight: 4 }} />}
-          <Polyline path={[riderPosition!, target]} options={dashed} />
+          {path.length > 0 && <PolylineF path={[...path, riderPosition!]} options={{ strokeColor: BRAND, strokeOpacity: 0.55, strokeWeight: 4, zIndex: 2 }} />}
+          <PolylineF path={[riderPosition!, target]} options={casing} />
+          <PolylineF path={[riderPosition!, target]} options={route} />
         </>
       ) : (
-        <Polyline path={[restaurant, destination]} options={{ ...dashed, icons: [{ ...dashed.icons[0], icon: { ...dashed.icons[0].icon, strokeOpacity: 0.5 } }] }} />
+        <>
+          <PolylineF path={[restaurant, destination]} options={casing} />
+          <PolylineF path={[restaurant, destination]} options={route} />
+        </>
       )}
       <MarkerF position={restaurant} label={{ text: '🍴', fontSize: '16px' }} />
       <MarkerF position={destination} label={{ text: '📍', fontSize: '16px' }} />

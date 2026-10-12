@@ -36,6 +36,8 @@ export default function AddressesPage() {
   async function handleSetDefault(address: Address) {
     if (!user) return
     await addressService.setDefault(user.id, address.id)
+    // The home page and cart show the active address - make the new default the one in use straight away.
+    setActiveAddress({ ...address, isDefault: true })
     reload()
   }
 

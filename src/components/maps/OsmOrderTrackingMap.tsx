@@ -20,7 +20,7 @@ const nextStop = (status: OrderStatus, restaurant: LatLng, destination: LatLng) 
 /**
  * Free OpenStreetMap stand-in for OrderTrackingMap's Google-powered map — used when no Google Maps
  * key is configured (or the Google script fails to load). Same behaviour: live rider marker, solid
- * driven path and a dashed line to the next stop once GPS fixes arrive; a simulated marker before.
+ * driven path and a solid line to the next stop once GPS fixes arrive; a simulated marker before.
  */
 export function OsmOrderTrackingMap({ restaurant, destination, status, rider, path = [], tall }: OrderTrackingMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -76,13 +76,13 @@ export function OsmOrderTrackingMap({ restaurant, destination, status, rider, pa
       }
       const leg = [toLL(riderPosition!), toLL(nextStop(status, restaurant, destination))]
       if (legRef.current) legRef.current.setLatLngs(leg)
-      else legRef.current = L.polyline(leg, { color: BRAND, weight: 3, opacity: 0.7, dashArray: '2 8' }).addTo(map)
+      else legRef.current = L.polyline(leg, { color: BRAND, weight: 5, opacity: 1 }).addTo(map)
       if (!fittedForRider.current) {
         map.fitBounds(L.latLngBounds([toLL(restaurant), toLL(destination), toLL(riderPosition!)]), { padding: [32, 32] })
         fittedForRider.current = true
       }
     } else if (!routeRef.current) {
-      routeRef.current = L.polyline([toLL(restaurant), toLL(destination)], { color: BRAND, weight: 3, opacity: 0.55, dashArray: '2 8' }).addTo(map)
+      routeRef.current = L.polyline([toLL(restaurant), toLL(destination)], { color: BRAND, weight: 5, opacity: 1 }).addTo(map)
     }
 
     if (!riderPosition) {

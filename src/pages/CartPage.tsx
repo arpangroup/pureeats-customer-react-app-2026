@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { AddressSummary } from '@/components/location/AddressSummary'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Bike, MapPin, MessageSquare, Route as RouteIcon, ShieldCheck, ShoppingBag, Store } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -228,8 +229,14 @@ export default function CartPage() {
           <button onClick={() => navigate('/profile/addresses', { state: { from: '/cart' } })} className="card mt-4 flex w-full items-center gap-3 p-4 text-left">
             <MapPin size={18} className="shrink-0 text-brand-600" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{activeAddress ? activeAddress.tag ?? 'Delivery address' : 'Select delivery address'}</p>
-              <p className="truncate text-xs text-slate-500 dark:text-slate-400">{activeAddress?.address ?? 'Tap to choose where to deliver'}</p>
+              {activeAddress ? (
+                <AddressSummary tag={activeAddress.tag} house={activeAddress.house} address={activeAddress.address} landmark={activeAddress.landmark} title="Delivering to" compact />
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Select delivery address</p>
+                  <p className="truncate text-xs text-slate-500 dark:text-slate-400">Tap to choose where to deliver</p>
+                </>
+              )}
             </div>
             <span className="shrink-0 text-xs font-semibold text-brand-600">Change</span>
           </button>

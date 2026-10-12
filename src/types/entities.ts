@@ -288,6 +288,9 @@ export interface Order {
   etaMinutes?: number | null
   /** The countdown runs this many times slower than real time (default 1.5). */
   etaSlowdownFactor?: number | null
+  /** The delivery address's landmark and "Save as" label (Home / Work / ...) when the order was placed. Null for older orders. */
+  addressLandmark?: string | null
+  addressTag?: string | null
 }
 
 /** The shape GET /orders (list) actually returns — lighter than the full Order the detail/tracking endpoints return. */
